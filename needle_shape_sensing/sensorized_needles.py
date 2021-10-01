@@ -14,7 +14,7 @@ from warnings import warn
 
 import numpy as np
 
-import fbg_signal_processing
+from . import fbg_signal_processing
 
 
 class Needle( object ):
@@ -163,7 +163,7 @@ class Needle( object ):
         """ Convert object to a dictionary"""
         return { 'serial number': self.serial_number,
                  'length'       : self.length,
-                 'diamater'     : self.diameter,
+                 'diameter'     : self.diameter,
                  'Emod'         : self.Emod,
                  'pratio'       : self.pratio
                  }
@@ -283,6 +283,12 @@ class FBGNeedle( Needle ):
         return self._sensor_location
 
     # sensor_locations
+
+    @property
+    def sensor_location_tip( self ):
+        return [ self.length - base_loc for base_loc in self.sensor_location ]
+
+    # sensor_location_tip
 
     @property
     def cal_matrices( self ):
@@ -654,9 +660,14 @@ class FBGNeedle( Needle ):
 
         # else
 
+        # needle mechanical properties
+        diameter = data.get( 'diameter', None )
+        Emod = data.get( 'Emod', None )
+        pratio = data.get( 'pratio', None )
+
         # instantiate the FBGNeedle class object
         fbg_needle = FBGNeedle( data[ 'length' ], data[ 'serial number' ], data[ '# channels' ], sensor_locations,
-                                cal_mats, weights )
+                                cal_mats, weights, diameter=diameter, Emod=Emod, pratio=pratio )
 
         # return the instantiation
         return fbg_needle
@@ -769,11 +780,11 @@ def __get_argparser() -> argparse.ArgumentParser:
     parser.add_argument( '--update-params', type=str, default=None, help='Update the FBG needle parameter file',
                          dest='update_file' )
 
-    needle_diam_grp = parser.add_mutually_exclusive_group(required=False)
+    needle_diam_grp = parser.add_mutually_exclusive_group( required=False )
     needle_diam_grp.add_argument( '--needle-gauge', type=str, default=None, help='The gauge of the needle (eg. 18G)' )
     needle_diam_grp.add_argument( '--diameter', type=float, default=None, help='The diameter of the needle (in mm)' )
 
-    material_grp = parser.add_argument_group(title="Material Properties")
+    material_grp = parser.add_argument_group( title="Material Properties" )
     material_grp.add_argument( '--material', type=str, default=None, help="The material of the needle." )
     material_grp.add_argument( '--Emod', type=float, default=None, help="Young's Modulus of the needle (in GPa)" )
     material_grp.add_argument( '--poisson-ratio', type=float, default=None, help="The Poisson's ratio of the needle" )
@@ -805,19 +816,19 @@ def main( args=None ):
 
     # process size parameters
     if pargs.needle_gauge is not None:
-        diameter = Needle.DIAM_GAUGE[pargs.needle_gauge]
+        diameter = Needle.DIAM_GAUGE[ pargs.needle_gauge ]
 
     else:
         diameter = pargs.diameter
 
     # process material properties
     if pargs.material is not None and pargs.Emod is None and pargs.poisson_ratio is None:
-        Emod = Needle.EMOD[pargs.material]
-        pratio = Needle.P_RATIO[pargs.material]
+        Emod = Needle.EMOD[ pargs.material ]
+        pratio = Needle.P_RATIO[ pargs.material ]
 
     # if
     elif pargs.material is not None and (pargs.Emod is not None or pargs.poisson_ratio is not None):
-        raise ValueError("Only can set material type by itself. Can't do custom material properties and material.")
+        raise ValueError( "Only can set material type by itself. Can't do custom material properties and material." )
 
     # elif
     else:
@@ -847,9 +858,9 @@ def main( args=None ):
     else:
         save_file = os.path.join( directory, 'needle_params.json' )
         print( "New needle parameters:" )
-        Needle(1,2,diameter=1,Emod=1, pratio=1)
+        Needle( 1, 2, diameter=1, Emod=1, pratio=1 )
         needle = FBGNeedle( length, serial_number, num_chs, aa_locs, diameter=diameter,
-                            Emod=Emod, pratio=pratio)
+                            Emod=Emod, pratio=pratio )
 
     # else
 
