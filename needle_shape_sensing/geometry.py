@@ -6,10 +6,10 @@ Author: Dimitri Lezcano
 
 """
 
-from spatialmath import SO2, SO3, SE3
-import numpy as np
-
 from typing import Union
+
+import numpy as np
+from spatialmath import SO2, SO3, SE3
 
 
 def hat( x: Union[ int, float, np.ndarray ] ) -> np.ndarray:
@@ -195,6 +195,36 @@ def is_symm( X: np.ndarray ) -> bool:
 
 
 # is_symm
+
+def rot2d( t: float ) -> np.ndarray:
+    """ 2D rotation matrix"""
+
+    return np.array( [ [ np.cos( t ), -np.sin( t ) ], [ np.sin( t ), np.cos( t ) ] ] )
+
+
+# rot2d
+
+def rotx( t: float ) -> np.ndarray:
+    """ Rotation matrix about x-axis"""
+    return np.array( [ [ 1, 0, 0 ], [ 0, np.cos( t ), -np.sin( t ) ], [ 0, np.sin( t ), np.cos( t ) ] ] )
+
+
+# rotx
+
+def roty( t: float ) -> np.ndarray:
+    """ Rotation matrix about y-axis"""
+    return np.array( [ [ np.cos( t ), 0, np.sin( t ) ], [ 0, 1, 0 ], [ -np.sin( t ), 0, np.cos( t ) ] ] )
+
+
+# roty
+
+def rotz( t: float ) -> np.ndarray:
+    """ Rotation matrix about z-axis"""
+    return np.array( [ [ np.cos( t ), -np.sin( t ), 0 ], [ np.sin( t ), np.cos( t ), 0 ], [ 0, 0, 1 ] ] )
+
+
+# rotz
+
 
 def vee( X: np.ndarray ) -> Union[ float, np.ndarray ]:
     """ Perform vee operation on X
