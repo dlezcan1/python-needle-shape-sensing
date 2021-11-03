@@ -179,8 +179,8 @@ class FBGNeedle( Needle ):
     This is a class for FBG Needle parameters containment.
     """
 
-    def __init__( self, length: float, serial_number: str, num_channels: int, sensor_location: list = [ ],
-                  calibration_mats: dict = { }, weights: dict = { }, **kwargs ):
+    def __init__( self, length: float, serial_number: str, num_channels: int, sensor_location=None,
+                  calibration_mats=None, weights=None, **kwargs ):
         """
         Constructor
 
@@ -192,6 +192,15 @@ class FBGNeedle( Needle ):
         """
 
         # data checking
+        if sensor_location is None:
+            sensor_location = [ ]
+
+        if weights is None:
+            weights = { }
+
+        if calibration_mats is None:
+            calibration_mats = { }
+
         if num_channels <= 0:
             raise ValueError( "'num_channels' must be > 0." )
 
@@ -462,10 +471,8 @@ class FBGNeedle( Needle ):
     def calculate_length_measured_instance( self, L: float, tip: bool = True, valid: bool = False ):
         """ Determine (and return) which lengths are valid for the current FBGNeedle
 
-            :param s_m: the measured arclengths
             :param L:   the insertion depth
             :param tip: (Default = True) whether the measured arclengths are from the tip of the needle or not.
-            :param needle_length: (Default = None) float of the entire needle length. Only needed if tip = False
             :param valid: (Default = False) whether to only return valid arclengths
         """
         # nump-ify the sensor locations
@@ -831,8 +838,8 @@ class FBGNeedle( Needle ):
 # class: FBGNeedle
 
 class ShapeSensingFBGNeedle( FBGNeedle ):
-    def __init__( self, length: float, serial_number: str, num_channels: int, sensor_location: list = [ ],
-                  calibration_mats: dict = { }, weights: dict = { }, ds: float = 0.5, current_depth: float = 0,
+    def __init__( self, length: float, serial_number: str, num_channels: int, sensor_location=None,
+                  calibration_mats=None, weights=None, ds: float = 0.5, current_depth: float = 0,
                   **kwargs ):
         super().__init__( length, serial_number, num_channels, sensor_location=sensor_location,
                           calibration_mats=calibration_mats, weights=weights, **kwargs )
@@ -1213,7 +1220,6 @@ def main( args=None ):
     else:
         save_file = os.path.join( directory, 'needle_params.json' )
         print( "New needle parameters:" )
-        Needle( 1, 2, diameter=1, Emod=1, pratio=1 )
         needle = FBGNeedle( length, serial_number, num_chs, aa_locs, diameter=diameter,
                             Emod=Emod, pratio=pratio )
 
