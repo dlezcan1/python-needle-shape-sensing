@@ -21,7 +21,7 @@ class NeedleParamOptimizations:
 
     # __init__
 
-    def constant_curvature( self, data: np.ndarray, L: float, **kwargs ):
+    def constant_curvature( self, data: np.ndarray, L: float):
         """
             Compute the constant curvature
 
@@ -171,10 +171,10 @@ class NeedleParamOptimizations:
 
         return kc, w_init, res
 
-    # singlebend_doublelayer_k0
+    # doublebend_singlelayer_k0
 
 
-# NeedleParamOptimiztions
+# NeedleParamOptimizations
 
 def integrateEP_w0( w_init: np.ndarray, w0: np.ndarray, w0prime: np.ndarray, B: np.ndarray,
                     s: np.ndarray = None, s0: float = 0, ds: float = None, R_init: np.ndarray = np.eye( 3 ),

@@ -460,7 +460,7 @@ class FBGNeedle( Needle ):
     # assignments_ch
 
     def calculate_length_measured_instance( self, L: float, tip: bool = True, valid: bool = False ):
-        """ Determine (and returh) which lengths are valid) for the current FBGNeedle
+        """ Determine (and return) which lengths are valid for the current FBGNeedle
 
             :param s_m: the measured arclengths
             :param L:   the insertion depth
@@ -481,7 +481,7 @@ class FBGNeedle( Needle ):
     @staticmethod
     def calculate_length_measured( s_m: np.ndarray, L: float, tip: bool = True, needle_length: float = None,
                                    valid: bool = False ):
-        """ Determine (and returh) which lengths are valid)
+        """ Determine (and return) which lengths are valid
 
             :param s_m: the measured arclengths
             :param L:   the insertion depth
@@ -887,8 +887,23 @@ class ShapeSensingFBGNeedle( FBGNeedle ):
     def get_needle_shape( self, *args, **kwargs ):
         """ Determine the 3D needle shape of the current shape-sensing needle
 
-        :param kc_i: the initial kappa_c values
+        Example (Single-Bend Single-Layer)
+            pmat, Rmat = ss_fbgneedle.get_needle_shape(kc_i, w_init_i, R_init=R_init)
+
+        Example (Single-Bend Double-Layer)
+            pmat, Rmat = ss_fbgneedle.get_needle_shape(kc_i, kc2_i, w_init_i, R_init=R_init)
+
+        Example (Double-Bend Single-Layer)
+            pmat, Rmat = ss_fbgneedle.get_needle_shape(kc_i, w_init_i, R_init=R_init)
+
+        :param kcx_i: the initial kappa_c value(s)
         :param w_init_i: (Default = None) the omega_init value
+        :keyword R_init: (Default = numpy.eye(3)) the initial angular offset
+        :returns: (N x 3 position matrix of the needle shape, N x 3 x 3 orientation matrices of the needle shape)
+                  (None, None) if:
+                        - sensors are not calibrated
+                        - current insertion depth not > 0
+                        - current shape type is not an implemented shape type
         """
         # kwargs get
         R_init = kwargs.get( 'R_init', np.eye( 3 ) )
@@ -896,10 +911,10 @@ class ShapeSensingFBGNeedle( FBGNeedle ):
 
         # initial checks
         pmat, Rmat = None, None
-        if not self.sensor_calibrated or np.any( self.current_wavelengths < 0 ): # check current wavelengths
+        if not self.sensor_calibrated or np.any( self.current_wavelengths < 0 ):  # check current wavelengths
             pass
 
-        elif self.current_depth <= 0: # check insertion depth
+        elif self.current_depth <= 0:  # check insertion depth
             pass
 
         elif self.current_shapetype in intrinsics.SHAPETYPES:
@@ -907,11 +922,10 @@ class ShapeSensingFBGNeedle( FBGNeedle ):
             k0, k0prime, w_init = None, None, None
 
             if self.current_shapetype == intrinsics.SHAPETYPES.CONSTANT_CURVATURE:
-                # TODO: get_needle_shape: constant curvature needle shape
                 # determine parameters
                 curvature = self.optimizer.constant_curvature( self.current_curvatures, self.current_depth )
 
-                pmat, Rmat = intrinsics.ConstantCurvature.shape(s, curvature)
+                pmat, Rmat = intrinsics.ConstantCurvature.shape( s, curvature )
 
                 pmat = pmat @ R_init.T
                 Rmat = R_init @ Rmat
@@ -936,7 +950,6 @@ class ShapeSensingFBGNeedle( FBGNeedle ):
             # if: single-bend single-layer
 
             elif self.current_shapetype == intrinsics.SHAPETYPES.SINGLEBEND_DOUBLELAYER:
-                # TODO: get_needleshape: single-bend double-layer
                 # get parameters
                 z_crit = self.insertion_parameters[ 'z_crit' ]
                 kc1_i = args[ 0 ]
@@ -965,7 +978,6 @@ class ShapeSensingFBGNeedle( FBGNeedle ):
             # elif: single-bend double-layer
 
             elif self.current_shapetype == intrinsics.SHAPETYPES.DOUBLEBEND_SINGLELAYER:
-                # TODO: get_needleshape: double-bend single-layer
                 # get parameters
                 s_crit = self.insertion_parameters[ 's_double_bend' ]
                 kc_i = args[ 0 ]
@@ -1007,12 +1019,20 @@ class ShapeSensingFBGNeedle( FBGNeedle ):
 
     @staticmethod  # overloaded
     def load_json( filename: str ):
+        """ Load a ShapeSensingFBGNeedle from a needle parameter json file"""
         return ShapeSensingFBGNeedle.from_FBGNeedle( super().load_json( filename ) )
 
     # load_json
 
     def update_shapetype( self, shapetype, *args ):
         """ Update the current needle shape-sensing type
+
+            Example:
+                ss_fbgneedle.update_shapetype(intrinsics.SHAPETYPES.SINGLEBEND_SINGLELAYER)
+
+            Example:
+                ss_fbgneedle.update_shapetype(intrinsics.SHAPETYPES.SINGLEBEND_DOUBLELAYER) -> throws IndexOutOfBoundsError
+                ss_fbgneedle.update_shapetype(intrinsics.SHAPETYPES.SINGLEBEND_DOUBLELAYER, z_crit) -> OK
 
             :param shapetype: listing from current implemented shape-types
                 if shapetype is SINGLEBEND_DOUBLELAYER:
@@ -1021,39 +1041,48 @@ class ShapeSensingFBGNeedle( FBGNeedle ):
                 if shapetype is DOUBLEBENG_SINGLELAYER:
                     first argument must the double bend insertion depth
 
+
+            :returns: True if update was successful, False otherwise.
+
         """
-        if shapetype == intrinsics.SHAPETYPES.SINGLEBEND_SINGLELAYER:
+        if shapetype == intrinsics.SHAPETYPES.CONSTANT_CURVATURE:
             self.__current_shapetype = shapetype
-            retval = True
+            success = True
 
         # if
+        elif shapetype == intrinsics.SHAPETYPES.SINGLEBEND_SINGLELAYER:
+            self.__current_shapetype = shapetype
+            success = True
+
+        # elif
         elif shapetype == intrinsics.SHAPETYPES.SINGLEBEND_DOUBLELAYER:
             self.__current_shapetype = shapetype
             self.insertion_parameters[ 'z_crit' ] = args[ 0 ]
-            retval = True
+            success = True
 
         # elif
         elif shapetype == intrinsics.SHAPETYPES.DOUBLEBEND_SINGLELAYER:
             self.__current_shapetype = shapetype
             self.insertion_parameters[ 's_double_bend' ] = args[ 0 ]
-            retval = True
+            success = True
 
         # elif
         else:
-            retval = False
+            success = False
 
         # else
 
-        return retval
+        return success
 
     # update_shapetype
 
-    def update_wavelengths( self, wavelengths: np.ndarray, reference: bool = False ):
+    def update_wavelengths( self, wavelengths: np.ndarray, reference: bool = False, temp_comp: bool = True ):
         """ Update the current signals and curvatures with the updated value. This will also determine the
             curvatures if the current reference signals are set
 
             :param wavelengths: numpy array to update the current signals with
             :param reference: (Default = False) whether to update the reference wavelengths
+            :param temp_comp: (Default = True) whether to perform temperature compensation on the signals
 
         """
         # get mean value if it is an array of measurements
@@ -1081,8 +1110,16 @@ class ShapeSensingFBGNeedle( FBGNeedle ):
 
         # calculate the curvatures
         if self.sensor_calibrated:
-            pass
-        return wavelengths  # return the signals anyways
+            curvatures = self.curvatures_raw( self.current_wavelengths, temp_comp=temp_comp )
+            self.current_curvatures = curvatures
+
+        # if
+        else:
+            curvatures = None
+
+        # else
+
+        return wavelengths, curvatures  # return the signals & curvatures anyways
 
     # update_wavelengths
 
@@ -1091,7 +1128,7 @@ class ShapeSensingFBGNeedle( FBGNeedle ):
 
 
 def __get_argparser() -> argparse.ArgumentParser:
-    """ Parse cli arguments"""
+    """ Parser for cli arguments"""
     # Setup parsed arguments
     parser = argparse.ArgumentParser( description="Make a new/Update an existing needle FBG parameter" )
 
