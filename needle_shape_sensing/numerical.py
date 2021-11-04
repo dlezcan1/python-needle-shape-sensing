@@ -28,7 +28,7 @@ class NeedleParamOptimizations:
         """
         assert (L > 0)
         # check for inserted into tissue
-        s_data_ins, inserted_sensors = self.fbg_needle.calculate_length_measured_instance( L, tip=True, valid=True )
+        s_data_ins, inserted_sensors = self.fbg_needle.calculate_length_measured( L, tip=True, valid=True )
         data_ins = data[ inserted_sensors ]
         weights = self.fbg_needle.weights[ inserted_sensors ] if len( self.fbg_needle.weights ) > 0 else \
             np.ones_like( s_data_ins )
@@ -60,7 +60,7 @@ class NeedleParamOptimizations:
         # argument checking
         assert (L > 0)
         # check for inserted into tissue
-        s_data_ins, inserted_sensors = self.fbg_needle.calculate_length_measured_instance( L, tip=True, valid=True )
+        s_data_ins, inserted_sensors = self.fbg_needle.calculate_length_measured( L, tip=True, valid=True )
         data_ins = data[ inserted_sensors ]
         weights = self.fbg_needle.weights[ inserted_sensors ] if len( self.fbg_needle.weights ) > 0 else None
 
@@ -104,7 +104,7 @@ class NeedleParamOptimizations:
         """
         assert (L >= z_crit > 0)
         # check for inserted into tissue
-        s_data_ins, inserted_sensors = self.fbg_needle.calculate_length_measured_instance( L, tip=True, valid=True )
+        s_data_ins, inserted_sensors = self.fbg_needle.calculate_length_measured( L, tip=True, valid=True )
         data_ins = data[ inserted_sensors ]
         weights = self.fbg_needle.weights[ inserted_sensors ] if len( self.fbg_needle.weights ) > 0 else None
 
@@ -147,7 +147,7 @@ class NeedleParamOptimizations:
         """
         assert (L >= s_crit > 0)
         # check for inserted into tissue
-        s_data_ins, inserted_sensors = self.fbg_needle.calculate_length_measured_instance( L, tip=True, valid=True )
+        s_data_ins, inserted_sensors = self.fbg_needle.calculate_length_measured( L, tip=True, valid=True )
         data_ins = data[ inserted_sensors ]
         weights = self.fbg_needle.weights[ inserted_sensors ] if len( self.fbg_needle.weights ) > 0 else None
 

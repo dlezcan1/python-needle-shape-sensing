@@ -226,6 +226,12 @@ class FBGNeedle( Needle ):
         self.weights = weights
         self.ref_wavelengths = -np.ones( self.num_channels * self.num_activeAreas )  # reference wavelengths
 
+        # (static/class) methods -> instance methods
+        self.calculate_length_measured = self.__calculate_length_measured
+        self.generate_ch_aa = self.__generate_ch_aa
+        self.assignments_aa = self.__assignments_aa
+        self.assignments_ch = self.__assignments_ch
+
     # __init__
 
     def __str__( self ):
@@ -430,7 +436,8 @@ class FBGNeedle( Needle ):
 
     # aa_cal
 
-    def aa_idx( self, aax: str ):
+    @staticmethod
+    def aa_idx( aax: str ):
         """ Function to get value from AAX indexing """
         return int( "".join( filter( str.isdigit, aax ) ) ) - 1
 
@@ -449,11 +456,11 @@ class FBGNeedle( Needle ):
 
     # assignments_aa
 
-    def assignments_AA( self ) -> list:
+    def __assignments_aa( self ) -> list:
         """ Instance method of assignments_aa """
         return FBGNeedle.assignments_aa( self.num_channels, self.num_activeAreas )
 
-    # assignments_AA
+    # __assignments_aa
 
     @staticmethod
     def assignments_ch( num_channels: int, num_active_areas: int ) -> list:
@@ -462,28 +469,11 @@ class FBGNeedle( Needle ):
 
     # assignments_ch
 
-    def assignments_CH( self ) -> list:
+    def __assignments_ch( self ) -> list:
         """ Instance method of assignments_ch """
         return FBGNeedle.assignments_ch( self.num_channels, self.num_activeAreas )
 
-    # assignments_ch
-
-    def calculate_length_measured_instance( self, L: float, tip: bool = True, valid: bool = False ):
-        """ Determine (and return) which lengths are valid for the current FBGNeedle
-
-            :param L:   the insertion depth
-            :param tip: (Default = True) whether the measured arclengths are from the tip of the needle or not.
-            :param valid: (Default = False) whether to only return valid arclengths
-        """
-        # nump-ify the sensor locations
-        if tip:
-            s_m = np.array( self.sensor_location_tip )
-        else:
-            s_m = np.array( self.sensor_location )
-
-        return FBGNeedle.calculate_length_measured( s_m, L, tip=tip, needle_length=self.length, valid=valid )
-
-    # calculate_length_measured_instance
+    # __assignments_ch
 
     @staticmethod
     def calculate_length_measured( s_m: np.ndarray, L: float, tip: bool = True, needle_length: float = None,
@@ -519,6 +509,23 @@ class FBGNeedle( Needle ):
 
     # calculate_length_measured
 
+    def __calculate_length_measured( self, L: float, tip: bool = True, valid: bool = False ):
+        """ Determine (and return) which lengths are valid for the current FBGNeedle
+
+            :param L:   the insertion depth
+            :param tip: (Default = True) whether the measured arclengths are from the tip of the needle or not.
+            :param valid: (Default = False) whether to only return valid arclengths
+        """
+        # nump-ify the sensor locations
+        if tip:
+            s_m = np.array( self.sensor_location_tip )
+        else:
+            s_m = np.array( self.sensor_location )
+
+        return FBGNeedle.calculate_length_measured( s_m, L, tip=tip, needle_length=self.length, valid=valid )
+
+    # __calculate_length_measured
+
     def curvatures_raw( self, raw_signals: Union[ dict, np.ndarray ], temp_comp: bool = True ) -> \
             Union[ dict, np.ndarray ]:
         """ Determine the curvatures from signals input
@@ -531,8 +538,7 @@ class FBGNeedle( Needle ):
                     Return:
                         (dict of {AA_index: curvature_xy} | numpy array of size 2 x num_activeAreas of curvature_xy)
         """
-        curvatures = { }
-        aa_assignments = self.assignments_AA()
+        aa_assignments = self.assignments_aa()
 
         if isinstance( raw_signals, dict ):
             proc_signals = np.zeros( self.num_channels * self.num_activeAreas )
@@ -617,7 +623,7 @@ class FBGNeedle( Needle ):
                 raise IndexError( "'proc_signals' dimensions must be <= 2." )
 
             for aa_i in range( 1, self.num_activeAreas + 1 ):
-                mask_aa_i = list( map( lambda aa: aa == aa_i, self.assignments_AA() ) )
+                mask_aa_i = list( map( lambda aa: aa == aa_i, self.assignments_aa() ) )
 
                 C_aa_i = self.aa_cal( f"AA{aa_i}" )
 
@@ -658,7 +664,7 @@ class FBGNeedle( Needle ):
 
     # generate_ch_aa
 
-    def generate_chaa( self ) -> (list, list, list):
+    def __generate_ch_aa( self ) -> (list, list, list):
         """ Instance method of generate_ch_aa"""
         return FBGNeedle.generate_ch_aa( self.num_channels, self.num_activeAreas )
 

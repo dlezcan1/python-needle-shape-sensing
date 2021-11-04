@@ -11,9 +11,6 @@ from typing import Union
 import numpy as np
 
 from . import numerical, intrinsics
-from .sensorized_needles import FBGNeedle
-
-
 
 
 def constant_curvature_cost( eta: np.ndarray, data, s_m: Union[ list, np.ndarray ], ds: float,
