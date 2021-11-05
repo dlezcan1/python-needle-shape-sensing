@@ -96,7 +96,7 @@ def singlebend_singlelayer_cost( eta: np.ndarray, data: np.ndarray, s_m: Union[ 
 
     # perform integration to get wv
     _, _, wv = numerical.integrateEP_w0( w_init, w0, w0prime, B, s0=0, ds=ds, R_init=R_init, Binv=Binv,
-                                         arg_check=arg_check )
+                                         arg_check=arg_check, wv_only=True )
 
     # determine AA locations
     s_m_idx = np.argwhere( s_m.reshape( -1, 1 ) == s.ravel() )[ :, 1 ]
@@ -189,7 +189,7 @@ def singlebend_doublelayer_cost( eta: np.ndarray, data: np.ndarray, s_m: Union[ 
 
     # perform integration to get wv
     _, _, wv = numerical.integrateEP_w0( w_init, w0, w0prime, B, s0=0, ds=ds, R_init=R_init, Binv=Binv,
-                                         arg_check=arg_check )
+                                         arg_check=arg_check, wv_only=True )
 
     # calculate cost
     s_m_idx = np.argwhere( s_m.reshape( -1, 1 ) == s.ravel() )[ :, 1 ]
@@ -263,7 +263,7 @@ def doublebend_singlelayer_cost( eta: np.ndarray, data: np.ndarray, s_m: Union[ 
 
     # perform integration to get wv
     _, _, wv = numerical.integrateEP_w0( w_init, w0, w0prime, B, s0=0, ds=ds, R_init=R_init, Binv=Binv,
-                                         arg_check=arg_check )
+                                         arg_check=arg_check, wv_only=True )
 
     # determine AA locations
     s_m_idx = np.argwhere( s_m.reshape( -1, 1 ) == s.ravel() )[ :, 1 ]
@@ -284,7 +284,7 @@ def curvature_cost( data: np.ndarray, wv: np.ndarray, s_m_idx: np.ndarray, weigh
     # if
 
     else:
-        weights = weights[ :-data.shape[ 0 ] ]
+        weights = weights[ -data.shape[ 0 ]: ]
 
     # else
 

@@ -14,12 +14,12 @@ import numpy as np
 from . import numerical, geometry
 
 
-class SHAPETYPES( Enum ):
+class SHAPETYPE( Enum ):
     # first byte is for the number of bends, the second byte is for the number of layers ( - 1)
     CONSTANT_CURVATURE = 0x00
     SINGLEBEND_SINGLELAYER = 0x01
-    SINGLEBEND_DOUBLELAYER = 0x01
-    DOUBLEBEND_SINGLELAYER = 0x10
+    SINGLEBEND_DOUBLELAYER = 0x02
+    DOUBLEBEND_SINGLELAYER = 0x11
 
 
 # enum class: SHAPETYPES
@@ -69,12 +69,12 @@ class ConstantCurvature:
     @staticmethod
     def shape( s: np.ndarray, curvature: Union[ float, np.ndarray ], thetaz: float = 0 ):
         """ Determine the (3D) constant curvature shape"""
-        if isinstance( curvature, float ):
+        if isinstance( curvature, (int, float) ):
             curvature, _ = ConstantCurvature.w0( s, curvature, thetaz=thetaz )
 
         # if
         else:
-            curvature = curvature @ geometry.rotz( thetaz ).T
+            curvature = curvature.reshape( -1, 3 ).repeat( s.size, axis=0 ) @ geometry.rotz( thetaz ).T
 
         # else
 
@@ -245,15 +245,15 @@ class SingleBend:
         s = np.arange( s0, length + ds, ds )
         k0, k0prime = SingleBend.k0_1layer( s, kc1, length )
 
-        w0 = np.vstack( (k0, np.zeros( (k0.shape[ 0 ], 2) )) )
-        w0prime = np.vstack( (k0prime, np.zeros( (k0prime.shape[ 0 ], 2) )) )
+        w0 = np.hstack( (k0.reshape(-1,1), np.zeros( (k0.size, 2) )) )
+        w0prime = np.hstack( (k0prime.reshape(-1,1), np.zeros( (k0prime.size, 2) )) )
 
         # compute position of single-layer approximation
         pmat_single, *_ = numerical.integrateEP_w0( w_init, w0, w0prime, B, s=s, R_init=R_init, Binv=Binv,
                                                     arg_check=False )
 
         # determine the point closest (but after) the boundary
-        dz = pmat_single[ :, 3 ] - z_crit
+        dz = pmat_single[ :, 2 ] - z_crit
         if np.all( dz <= 0 ):
             s_crit = -1  # not in double-layer yet
 
