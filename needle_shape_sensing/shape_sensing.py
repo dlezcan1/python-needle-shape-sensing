@@ -210,6 +210,34 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
 
     # load_json
 
+    def update_curvatures( self, processed: bool = False, temp_comp: bool = True ):
+        """ Update the current curvatures
+
+            :param processed: (Default = False) a boolean on whether the current signals are processed or not
+            :param temp_comp: (Default = True) a boolean on whether to perform temperature compensated for non-processed signals
+
+            :returns: True if update was successful, False otherwise.
+
+        """
+        if self.sensor_calibrated and self.is_calibrated:
+            success = True
+
+            if processed:
+                self.current_curvatures = self.curvatures_processed( self.current_wavelengths )
+
+            else:
+                self.current_curvatures = self.curvatures_raw( self.current_wavelengths, temp_comp=temp_comp )
+
+        # if
+        else:
+            success = False
+
+        # else
+
+        return success
+
+    # update_curvatures
+
     def update_shapetype( self, shapetype, *args ):
         """ Update the current needle shape-sensing type
 
@@ -264,13 +292,15 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
 
     # update_shapetype
 
-    def update_wavelengths( self, wavelengths: np.ndarray, reference: bool = False, temp_comp: bool = True ):
+    def update_wavelengths( self, wavelengths: np.ndarray, reference: bool = False, temp_comp: bool = True,
+                            processed: bool = False ):
         """ Update the current signals and curvatures with the updated value. This will also determine the
             curvatures if the current reference signals are set
 
             :param wavelengths: numpy array to update the current signals with
             :param reference: (Default = False) whether to update the reference wavelengths
             :param temp_comp: (Default = True) whether to perform temperature compensation on the signals
+            :param processed: (Default = False) whether the signals are processed or not
 
         """
         # get mean value if it is an array of measurements
@@ -297,15 +327,8 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
         # else
 
         # calculate the curvatures
-        if self.sensor_calibrated and len( self.cal_matrices ) > 0:
-            curvatures = self.curvatures_raw( self.current_wavelengths, temp_comp=temp_comp )
-            self.current_curvatures = curvatures
-
-        # if
-        else:
-            curvatures = None
-
-        # else
+        success = self.update_curvatures( processed=processed, temp_comp=temp_comp )
+        curvatures = self.current_curvatures if success else None
 
         return wavelengths, curvatures  # return the signals & curvatures anyways
 
