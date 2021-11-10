@@ -12,6 +12,21 @@ import numpy as np
 from spatialmath import SO2, SO3, SE3
 
 
+def axangle2rotm( theta: Union[ float, np.ndarray ], w: np.ndarray ) -> np.ndarray:
+    """ Compute a rotation matrix from the axis angle representation
+
+        :param theta: the angle of rotation (in radians)
+        :param w: the unit vector of the direction of rotation
+
+        :return: 3x3 Rotation matrix about w for theta rads
+    """
+
+    return rodrigues( theta * w )
+
+
+# axangle2rotm
+
+
 def hat( x: Union[ int, float, np.ndarray ] ) -> np.ndarray:
     """ Perform the inverse vee operation
 
@@ -23,8 +38,7 @@ def hat( x: Union[ int, float, np.ndarray ] ) -> np.ndarray:
             3x3 so(3) element if x.size == 3
             4x4 se(3) element if x.size == 6
     """
-    if isinstance( x, (int, float)
-                   ):
+    if isinstance( x, (int, float) ):
         X = hat_so2( x )
 
     else:
@@ -41,6 +55,8 @@ def hat( x: Union[ int, float, np.ndarray ] ) -> np.ndarray:
 
         else:
             raise IndexError( "Size of `x` must be either 1, 3, or 6 vector" )
+
+    # else
 
     return X
 
@@ -196,6 +212,81 @@ def is_symm( X: np.ndarray ) -> bool:
 
 # is_symm
 
+def quat2rotm( q: np.ndarray ) -> np.ndarray:
+    """ Convert a unit quaternion to a """
+    q /= np.linalg.norm( q )  # ensure unit
+
+    # unpack quaternion
+    c, v = q[ 0 ], q[ 1:4 ]  # cos(theta/2), sin(theta/2) * w
+    s = np.linalg.norm( v )
+
+    # compute angle and vector
+    theta = 2 * np.arctan2( s, c )
+    w = v / s
+
+    # compute rotation matrix
+    R = axangle2rotm( theta, w )
+
+    return R
+
+
+# quat2rotm
+
+
+def rodrigues( w: np.ndarray ) -> np.ndarray:
+    """ Compute the rodrigues formula for the vector
+
+        :param w: 3D vector of rotation
+
+        :return: 3x3 Rotation matrix
+
+    """
+    theta = np.linalg.norm( w )
+    if theta == 0:
+        R = np.eye( 3 )
+
+    else:
+        wh = hat_so3( w / theta )  # skew(w)
+        R =  np.eye( 3 ) + np.sin( theta ) * wh + (1 - np.cos( theta )) * (wh @ wh)
+
+    return R
+
+# rodrigues
+
+
+def rotm2axangle( R: np.ndarray ) -> (float, np.ndarray):
+    """ Convert a rotation matrix to a quaternion
+        :param R: numpy array of rotation matrix
+
+        :return: angle of rotation, 3-D vector unit vector
+    """
+    theta = float( np.arccos( (np.trace( R ) - 1) / 2 ) )
+    if theta == 0:
+        w = np.array( [ 1, 0, 0 ] )
+
+    else:
+        w = 1 / (2 * np.sin( theta )) * vee_so3( R - R.T )
+
+    return theta, w
+
+
+# rotm2axangle
+
+def rotm2quat( R: np.ndarray ) -> np.ndarray:
+    """ Convert a rotation matrix to a quaternion
+        :param R: numpy array of rotation matrix
+
+        :return: 4-D vector unit quaternion of (w, x, y, z)
+    """
+
+    theta, w = rotm2axangle( R )
+    w /= np.linalg.norm( w )
+
+    return np.append( np.cos( theta / 2 ), np.sin( theta / 2 ) * w )
+
+
+# rotm2quat
+
 def rot2d( t: float ) -> np.ndarray:
     """ 2D rotation matrix"""
 
@@ -224,7 +315,6 @@ def rotz( t: float ) -> np.ndarray:
 
 
 # rotz
-
 
 def vee( X: np.ndarray ) -> Union[ float, np.ndarray ]:
     """ Perform vee operation on X
@@ -275,7 +365,6 @@ def vee_so2( X: np.ndarray, validate: bool = False ) -> float:
 
 # vee_so2
 
-
 def vee_so3( X: np.ndarray, validate: bool = False ) -> np.ndarray:
     """ Perform vee operation on X
 
@@ -297,7 +386,6 @@ def vee_so3( X: np.ndarray, validate: bool = False ) -> np.ndarray:
 
 
 # vee_so3
-
 
 def vee_se3( X: np.ndarray, validate: bool = False ) -> np.ndarray:
     """ Perform vee operation on X
