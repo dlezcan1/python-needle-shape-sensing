@@ -19,6 +19,8 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
 
         # define needle shape-sensing optimizers
         self.optimizer = numerical.NeedleParamOptimizations( self, ds=ds, optim_options=optim_options )
+        self.current_kc = [0]
+        self.current_winit = np.zeros(3)
 
     # __init__
 
@@ -125,6 +127,9 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
                 # determine parameters
                 kc, w_init, _ = self.optimizer.singlebend_singlelayer_k0( kc_i, w_init_i, self.current_curvatures.T,
                                                                           self.current_depth, R_init=R_init, **kwargs )
+                self.current_kc = [kc]
+                self.current_winit = w_init
+
                 # determine k0 and k0prime
                 k0, k0prime = intrinsics.SingleBend.k0_1layer( s, kc, self.current_depth, )
 
@@ -149,6 +154,8 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
                                                                                 self.current_curvatures.T,
                                                                                 self.current_depth, z_crit=z_crit,
                                                                                 R_init=R_init )
+                self.current_kc = [kc1, kc2]
+                self.current_winit = w_init
                 s_crit = intrinsics.SingleBend.determine_2layer_boundary( kc1, self.current_depth, z_crit, self.B,
                                                                           w_init=w_init, s0=0, ds=self.ds,
                                                                           R_init=R_init )
@@ -175,6 +182,8 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
 
                 kc, w_init, _ = self.optimizer.doublebend_singlelayer_k0( kc_i, w_init_i, self.current_curvatures.T,
                                                                           self.current_depth, s_crit, R_init=R_init )
+                self.current_kc = [kc]
+                self.current_winit = w_init
                 k0, k0prime = intrinsics.DoubleBend.k0_1layer( s, kc, self.current_depth, s_crit=s_crit )
 
             # elif: double-bend single-layer

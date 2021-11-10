@@ -934,7 +934,7 @@ def main( args=None ):
     # if
 
     else:
-        save_file = os.path.join( directory, 'needle_params.json' )
+        save_file = os.path.join( directory, '../needle_params.json' )
         print( "New needle parameters:" )
         needle = FBGNeedle( length, serial_number, num_chs, aa_locs, diameter=diameter,
                             Emod=Emod, pratio=pratio )

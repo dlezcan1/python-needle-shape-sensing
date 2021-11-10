@@ -413,14 +413,14 @@ def simpson_vec_int( f: np.ndarray, dx: float ) -> np.ndarray:
 
         # if
         else:
-            m = num_intervals - 1
+            m = num_intervals
 
         # else
 
-        int_res += dx / 3 * (f[ :, 1 ] + 4 * np.sum( f[ :, 1:2:m ], axis=1 ) + f[ :, m + 1 ])
+        int_res += dx / 3 * (f[ :, 0 ] + 4 * np.sum( f[ :, 1:m:2 ], axis=1 ) + f[ :, m ])
 
         if m > 2:
-            int_res += dx / 3 * 2 * np.sum( f[ :, 2:2:m ], axis=1 )
+            int_res += dx / 3 * 2 * np.sum( f[ :, 2:m:2 ], axis=1 )
 
         # if
 
