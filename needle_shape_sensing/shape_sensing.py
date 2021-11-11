@@ -19,8 +19,8 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
 
         # define needle shape-sensing optimizers
         self.optimizer = numerical.NeedleParamOptimizations( self, ds=ds, optim_options=optim_options )
-        self.current_kc = [0]
-        self.current_winit = np.zeros(3)
+        self.current_kc = [ 0 ]
+        self.current_winit = np.zeros( 3 )
 
     # __init__
 
@@ -92,7 +92,7 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
 
         # initial checks
         pmat, Rmat = None, None
-        if not self.sensor_calibrated or np.any( self.current_wavelengths < 0 ):  # check current wavelengths
+        if not self.sensor_calibrated:  # check current wavelengths
             pass
 
         elif self.current_depth <= 0:  # check insertion depth
@@ -117,7 +117,7 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
                 kc_i = args[ 0 ]
                 if len( args ) > 1:
                     w_init_i = args[ 1 ]
-                    if ~isinstance( w_init_i, np.ndarray ) or len( w_init_i ) != 3:
+                    if not isinstance( w_init_i, np.ndarray ) or len( w_init_i ) != 3:
                         raise ValueError( "w_init_i must be a 3-D vector" )
                 else:
                     w_init_i = np.array( [ kc_i, 0, 0 ] )
@@ -127,7 +127,7 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
                 # determine parameters
                 kc, w_init, _ = self.optimizer.singlebend_singlelayer_k0( kc_i, w_init_i, self.current_curvatures.T,
                                                                           self.current_depth, R_init=R_init, **kwargs )
-                self.current_kc = [kc]
+                self.current_kc = [ kc ]
                 self.current_winit = w_init
 
                 # determine k0 and k0prime
@@ -154,7 +154,7 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
                                                                                 self.current_curvatures.T,
                                                                                 self.current_depth, z_crit=z_crit,
                                                                                 R_init=R_init )
-                self.current_kc = [kc1, kc2]
+                self.current_kc = [ kc1, kc2 ]
                 self.current_winit = w_init
                 s_crit = intrinsics.SingleBend.determine_2layer_boundary( kc1, self.current_depth, z_crit, self.B,
                                                                           w_init=w_init, s0=0, ds=self.ds,
@@ -182,7 +182,7 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
 
                 kc, w_init, _ = self.optimizer.doublebend_singlelayer_k0( kc_i, w_init_i, self.current_curvatures.T,
                                                                           self.current_depth, s_crit, R_init=R_init )
-                self.current_kc = [kc]
+                self.current_kc = [ kc ]
                 self.current_winit = w_init
                 k0, k0prime = intrinsics.DoubleBend.k0_1layer( s, kc, self.current_depth, s_crit=s_crit )
 

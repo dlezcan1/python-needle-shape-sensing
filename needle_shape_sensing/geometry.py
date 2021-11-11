@@ -81,7 +81,7 @@ def hat_so3( x: np.ndarray ) -> np.ndarray:
     X[ 0, 2 ] = x[ 1 ]
     X[ 1, 2 ] = -x[ 0 ]
 
-    X += X.T
+    X -= X.T
 
     return X
 
@@ -214,6 +214,7 @@ def is_symm( X: np.ndarray ) -> bool:
 
 def quat2rotm( q: np.ndarray ) -> np.ndarray:
     """ Convert a unit quaternion to a """
+    q = q.astype( float )
     q /= np.linalg.norm( q )  # ensure unit
 
     # unpack quaternion
@@ -222,10 +223,16 @@ def quat2rotm( q: np.ndarray ) -> np.ndarray:
 
     # compute angle and vector
     theta = 2 * np.arctan2( s, c )
-    w = v / s
+    if theta == 0:
+        R = np.eye( 3 )  # identity matrix
 
-    # compute rotation matrix
-    R = axangle2rotm( theta, w )
+    else:
+        w = v / s
+
+        # compute rotation matrix
+        R = axangle2rotm( theta, w )
+
+    # else
 
     return R
 
@@ -247,9 +254,10 @@ def rodrigues( w: np.ndarray ) -> np.ndarray:
 
     else:
         wh = hat_so3( w / theta )  # skew(w)
-        R =  np.eye( 3 ) + np.sin( theta ) * wh + (1 - np.cos( theta )) * (wh @ wh)
+        R = np.eye( 3 ) + np.sin( theta ) * wh + (1 - np.cos( theta )) * (wh @ wh)
 
     return R
+
 
 # rodrigues
 
@@ -267,7 +275,7 @@ def rotm2axangle( R: np.ndarray ) -> (float, np.ndarray):
     else:
         w = 1 / (2 * np.sin( theta )) * vee_so3( R - R.T )
 
-    return theta, w
+    return theta, w.astype( np.float )
 
 
 # rotm2axangle
@@ -280,6 +288,7 @@ def rotm2quat( R: np.ndarray ) -> np.ndarray:
     """
 
     theta, w = rotm2axangle( R )
+    w = w.astype( float )
     w /= np.linalg.norm( w )
 
     return np.append( np.cos( theta / 2 ), np.sin( theta / 2 ) * w )
