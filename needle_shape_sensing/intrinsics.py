@@ -6,7 +6,7 @@ Author: Dimitri Lezcano
 
 """
 
-from enum import Enum
+from enum import Enum, Flag, auto
 from typing import Union
 
 import numpy as np
@@ -14,12 +14,12 @@ import numpy as np
 from . import numerical, geometry
 
 
-class SHAPETYPE( Enum ):
+class SHAPETYPE( Flag ):
     # first byte is for the number of bends, the second byte is for the number of layers ( - 1)
     CONSTANT_CURVATURE = 0x00
     SINGLEBEND_SINGLELAYER = 0x01
     SINGLEBEND_DOUBLELAYER = 0x02
-    DOUBLEBEND_SINGLELAYER = 0x11
+    DOUBLEBEND_SINGLELAYER = 0x10 | SINGLEBEND_SINGLELAYER
 
 
 # enum class: SHAPETYPES
