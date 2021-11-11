@@ -17,12 +17,17 @@ class NeedleParamOptimizations:
     def __init__( self, fbgneedle: FBGNeedle, ds: float = 0.5, optim_options: dict = None ):
         assert (ds > 0)
         self.fbg_needle = fbgneedle
+
+        # don't calculate each time
+        self.__needle_B = self.fbg_needle.B
+        self.__needle_Binv = np.linalg.inv( self.fbg_needle.B )
+
         self.ds = ds
 
         # optimizer options
         default_options = { 'w_init_bounds': [ (-0.01, 0.01) ] * 3,
                             'kc_bounds'    : [ (0, 0.01) ],
-                            'tol': 1e-8
+                            'tol'          : 1e-8
                             }
         self.options = default_options
         self.options.update( optim_options if optim_options is not None else { } )
@@ -87,13 +92,13 @@ class NeedleParamOptimizations:
 
         # perform the optimization
         eta_0 = np.append( [ k_c_0 ], w_init_0 )
-        Binv = np.linalg.inv( self.fbg_needle.B )
+        Binv = kwargs.get( 'Binv', self.__needle_Binv )
         cost_kwargs = { 'L'      : L,
                         'Binv'   : Binv,
                         'R_init' : R_init,
                         'weights': weights
                         }
-        c_0 = cost_functions.singlebend_singlelayer_cost( eta_0, data_ins, s_data_ins, self.ds, self.fbg_needle.B,
+        c_0 = cost_functions.singlebend_singlelayer_cost( eta_0, data_ins, s_data_ins, self.ds, self.__needle_B,
                                                           scalef=1, arg_check=True, **cost_kwargs )
         c_f = 1 / c_0 if c_0 > 0 else 1
         cost_fn = lambda eta: cost_functions.singlebend_singlelayer_cost( eta, data_ins, s_data_ins, self.ds,
@@ -139,7 +144,7 @@ class NeedleParamOptimizations:
 
         # perform the optimization
         eta_0 = np.append( [ kc1_0, kc2_0 ], w_init_0 )
-        Binv = np.linalg.inv( self.fbg_needle.B )
+        Binv = kwargs.get( 'Binv', self.__needle_Binv )
         cost_kwargs = { 'L'      : L,
                         's_crit' : s_crit,
                         'z_crit' : z_crit,
@@ -147,7 +152,7 @@ class NeedleParamOptimizations:
                         'R_init' : R_init,
                         'weights': weights
                         }
-        c_0 = cost_functions.singlebend_doublelayer_cost( eta_0, data_ins, s_data_ins, self.ds, self.fbg_needle.B,
+        c_0 = cost_functions.singlebend_doublelayer_cost( eta_0, data_ins, s_data_ins, self.ds, self.__needle_B,
                                                           scalef=1, arg_check=True, **cost_kwargs )
         c_f = 1 / c_0 if c_0 > 0 else 1
         cost_fn = lambda eta: cost_functions.singlebend_doublelayer_cost( eta, data_ins, s_data_ins, self.ds,
@@ -190,7 +195,7 @@ class NeedleParamOptimizations:
 
         # perform the optimization
         eta_0 = np.append( [ kc_0 ], w_init_0 )
-        Binv = np.linalg.inv( self.fbg_needle.B )
+        Binv = kwargs.get( 'Binv', self.__needle_Binv )
         cost_kwargs = { 'L'      : L,
                         'Binv'   : Binv,
                         'R_init' : R_init,
@@ -201,7 +206,7 @@ class NeedleParamOptimizations:
                                                           scalef=1, arg_check=True, **cost_kwargs )
         c_f = 1 / c_0 if c_0 > 0 else 1
         cost_fn = lambda eta: cost_functions.doublebend_singlelayer_cost( eta, data_ins, s_data_ins, self.ds,
-                                                                          s_crit, self.fbg_needle.B,
+                                                                          s_crit, self.__needle_B,
                                                                           scalef=c_f, arg_check=False,
                                                                           **cost_kwargs )
         res = self.__optimize( cost_fn, eta_0, **kwargs )
