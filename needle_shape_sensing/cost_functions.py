@@ -37,12 +37,13 @@ def constant_curvature_cost( eta: np.ndarray, data, s_m: Union[ list, np.ndarray
 
     return cost
 
+
 # constant_curvature_cost
 
 def singlebend_singlelayer_cost( eta: np.ndarray, data: np.ndarray, s_m: Union[ list, np.ndarray ], ds: float,
                                  B: np.ndarray, L: float = None, N: int = None, Binv: np.ndarray = None,
                                  R_init: np.ndarray = np.eye( 3 ), weights: np.ndarray = None, scalef: float = 1,
-                                 arg_check: bool = False ) -> float:
+                                 arg_check: bool = False, continuous: bool = False ) -> float:
     """ Single bend and single layer needle cost function
 
         Args:
@@ -58,6 +59,7 @@ def singlebend_singlelayer_cost( eta: np.ndarray, data: np.ndarray, s_m: Union[ 
             :param weights: (Default = 1) the reliability weights for each of the active areas
             :param scalef: (Default = 1) the scaling for the cost function
             :param arg_check: (Default = False) whether to check if the arguments are valid
+            :param continuous: (Default = False) whether to perform continuous integration or not
 
         Return:
             :return: cost for single bend and single-layer shape sensing
@@ -89,14 +91,25 @@ def singlebend_singlelayer_cost( eta: np.ndarray, data: np.ndarray, s_m: Union[ 
     # else
 
     # determine w0 and w0prime
-    k0, k0prime = intrinsics.SingleBend.k0_1layer( s, kc, L )
-
-    w0 = np.hstack( (k0.reshape( -1, 1 ), np.zeros( (N, 2) )) )
-    w0prime = np.hstack( (k0prime.reshape( -1, 1 ), np.zeros( (N, 2) )) )
+    k0, k0prime = intrinsics.SingleBend.k0_1layer( s, kc, L, return_callable=continuous )
 
     # perform integration to get wv
-    _, _, wv = numerical.integrateEP_w0( w_init, w0, w0prime, B, s0=0, ds=ds, R_init=R_init, Binv=Binv,
-                                         arg_check=arg_check, wv_only=True )
+    if continuous:
+        w0 = lambda s: np.append( k0( s ), [ 0, 0 ] )
+        w0prime = lambda s: np.append( k0prime( s ), [ 0, 0 ] )
+
+        _, _, wv = numerical.integrateEP_w0_ode( w_init, w0, w0prime, B, s, s0=0, ds=ds, R_init=R_init, Binv=Binv,
+                                                 arg_check=arg_check, wv_only=True )
+
+    # if
+    else:
+        w0 = np.hstack( (k0.reshape( -1, 1 ), np.zeros( (N, 2) )) )
+        w0prime = np.hstack( (k0prime.reshape( -1, 1 ), np.zeros( (N, 2) )) )
+
+        _, _, wv = numerical.integrateEP_w0( w_init, w0, w0prime, B, s0=0, ds=ds, R_init=R_init, Binv=Binv,
+                                             arg_check=arg_check, wv_only=True )
+
+    # else
 
     # determine AA locations
     s_m_idx = np.argwhere( s_m.reshape( -1, 1 ) == s.ravel() )[ :, 1 ]
@@ -109,10 +122,12 @@ def singlebend_singlelayer_cost( eta: np.ndarray, data: np.ndarray, s_m: Union[ 
 
 # singlebend_singlelayer_cost
 
+
 def singlebend_doublelayer_cost( eta: np.ndarray, data: np.ndarray, s_m: Union[ list, np.ndarray ], ds: float,
                                  B: np.ndarray, L: float = None, s_crit: float = None, z_crit: float = None,
                                  N: int = None, Binv: np.ndarray = None, R_init: np.ndarray = np.eye( 3 ),
-                                 weights: np.ndarray = None, scalef: float = 1, arg_check: bool = False ) -> float:
+                                 weights: np.ndarray = None, scalef: float = 1, arg_check: bool = False,
+                                 continuous: bool = False ) -> float:
     """ Single bend and single layer needle cost function
 
         Args:
@@ -131,6 +146,7 @@ def singlebend_doublelayer_cost( eta: np.ndarray, data: np.ndarray, s_m: Union[ 
             :param weights: (Default = 1) the reliability weights for each of the active areas
             :param scalef: (Default = 1) the scaling for the cost function
             :param arg_check: (Default = False) whether to check if the arguments are valid
+            :param continuous: (Default = False) whether to perform continuous integration or not
 
         Return:
             :return: cost for single bend and single-layer shape sensing
@@ -168,8 +184,7 @@ def singlebend_doublelayer_cost( eta: np.ndarray, data: np.ndarray, s_m: Union[ 
     # if
     elif z_crit is not None:
         s_crit = intrinsics.SingleBend.determine_2layer_boundary( kc1, L, z_crit, B, w_init=w_init, s0=0, ds=ds,
-                                                                  R_init=R_init,
-                                                                  Binv=Binv )
+                                                                  R_init=R_init, Binv=Binv, continuous=continuous )
     # elif
     else:
         raise ValueError( "Either s_crit or z_crit must be defined." )
@@ -178,18 +193,28 @@ def singlebend_doublelayer_cost( eta: np.ndarray, data: np.ndarray, s_m: Union[ 
 
     # determine k0 and k0prime
     if s_crit < 0:  # single-layer
-        k0, k0prime = intrinsics.SingleBend.k0_1layer( s, kc1, L )
+        k0, k0prime = intrinsics.SingleBend.k0_1layer( s, kc1, L, return_callable=continuous )
 
     else:  # double-layer
-        k0, k0prime = intrinsics.SingleBend.k0_2layer( s, kc1, kc2, L, s_crit )
-
-    # determine w0 and w0prime
-    w0 = np.hstack( (k0.reshape( -1, 1 ), np.zeros( (N, 2) )) )
-    w0prime = np.hstack( (k0prime.reshape( -1, 1 ), np.zeros( (N, 2) )) )
+        k0, k0prime = intrinsics.SingleBend.k0_2layer( s, kc1, kc2, L, s_crit, return_callable=continuous )
 
     # perform integration to get wv
-    _, _, wv = numerical.integrateEP_w0( w_init, w0, w0prime, B, s0=0, ds=ds, R_init=R_init, Binv=Binv,
-                                         arg_check=arg_check, wv_only=True )
+    if continuous:
+        w0 = lambda s: np.append( k0( s ), [ 0, 0 ] )
+        w0prime = lambda s: np.append( k0prime( s ), [ 0, 0 ] )
+
+        _, _, wv = numerical.integrateEP_w0_ode( w_init, w0, w0prime, B, s, s0=0, ds=ds, R_init=R_init, Binv=Binv,
+                                                 arg_check=arg_check, wv_only=True )
+
+    # if
+    else:
+        w0 = np.hstack( (k0.reshape( -1, 1 ), np.zeros( (N, 2) )) )
+        w0prime = np.hstack( (k0prime.reshape( -1, 1 ), np.zeros( (N, 2) )) )
+
+        _, _, wv = numerical.integrateEP_w0( w_init, w0, w0prime, B, s0=0, ds=ds, R_init=R_init, Binv=Binv,
+                                             arg_check=arg_check, wv_only=True )
+
+    # else
 
     # calculate cost
     s_m_idx = np.argwhere( s_m.reshape( -1, 1 ) == s.ravel() )[ :, 1 ]
@@ -200,10 +225,11 @@ def singlebend_doublelayer_cost( eta: np.ndarray, data: np.ndarray, s_m: Union[ 
 
 # singlebend_doublelayer_cost
 
+
 def doublebend_singlelayer_cost( eta: np.ndarray, data: np.ndarray, s_m: Union[ list, np.ndarray ], ds: float,
                                  s_crit: float, B: np.ndarray, L: float = None, N: int = None, Binv: np.ndarray = None,
                                  R_init: np.ndarray = np.eye( 3 ), weights: np.ndarray = None, scalef: float = 1,
-                                 arg_check: bool = False ) -> float:
+                                 arg_check: bool = False, continuous: bool = False ) -> float:
     """ Single bend and single layer needle cost function
 
         Args:
@@ -220,6 +246,7 @@ def doublebend_singlelayer_cost( eta: np.ndarray, data: np.ndarray, s_m: Union[ 
             :param weights: (Default = 1) the reliability weights for each of the active areas
             :param scalef: (Default = 1) the scaling for the cost function
             :param arg_check: (Default = False) whether to check if the arguments are valid
+            :param continuous: (Default = False) whether to perform continuous integration or not
 
         Return:
             :return: cost for single bend and single-layer shape sensing
@@ -252,18 +279,28 @@ def doublebend_singlelayer_cost( eta: np.ndarray, data: np.ndarray, s_m: Union[ 
 
     # determine k0 and k0prime
     if s_crit < 0:  # single-layer
-        k0, k0prime = intrinsics.SingleBend.k0_1layer( s, kc, L )
+        k0, k0prime = intrinsics.SingleBend.k0_1layer( s, kc, L, return_callable=continuous )
 
     else:  # double-bend
-        k0, k0prime = intrinsics.DoubleBend.k0_1layer( s, kc, L, s_crit )
-
-    # determine w0 and w0prime
-    w0 = np.hstack( (k0.reshape( -1, 1 ), np.zeros( (N, 2) )) )
-    w0prime = np.hstack( (k0prime.reshape( -1, 1 ), np.zeros( (N, 2) )) )
+        k0, k0prime = intrinsics.DoubleBend.k0_1layer( s, kc, L, s_crit, return_callable=continuous )
 
     # perform integration to get wv
-    _, _, wv = numerical.integrateEP_w0( w_init, w0, w0prime, B, s0=0, ds=ds, R_init=R_init, Binv=Binv,
-                                         arg_check=arg_check, wv_only=True )
+    if continuous:
+        w0 = lambda s: np.append( k0( s ), [ 0, 0 ] )
+        w0prime = lambda s: np.append( k0prime( s ), [ 0, 0 ] )
+
+        _, _, wv = numerical.integrateEP_w0_ode( w_init, w0, w0prime, B, s, s0=0, ds=ds, R_init=R_init, Binv=Binv,
+                                                 arg_check=arg_check, wv_only=True )
+
+    # if
+    else:
+        w0 = np.hstack( (k0.reshape( -1, 1 ), np.zeros( (N, 2) )) )
+        w0prime = np.hstack( (k0prime.reshape( -1, 1 ), np.zeros( (N, 2) )) )
+
+        _, _, wv = numerical.integrateEP_w0( w_init, w0, w0prime, B, s0=0, ds=ds, R_init=R_init, Binv=Binv,
+                                             arg_check=arg_check, wv_only=True )
+
+    # else
 
     # determine AA locations
     s_m_idx = np.argwhere( s_m.reshape( -1, 1 ) == s.ravel() )[ :, 1 ]
@@ -274,7 +311,7 @@ def doublebend_singlelayer_cost( eta: np.ndarray, data: np.ndarray, s_m: Union[ 
     return cost
 
 
-# singlebend_doublelayer_cost
+# doublebend_singlelayer_cost
 
 
 def curvature_cost( data: np.ndarray, wv: np.ndarray, s_m_idx: np.ndarray, weights: np.ndarray = None ):
