@@ -6,8 +6,8 @@ Author: Dimitri Lezcano
 
 """
 
-from enum import Enum, Flag, auto
-from typing import Union
+from enum import Flag
+from typing import Union, Callable
 
 import numpy as np
 
@@ -26,41 +26,59 @@ class SHAPETYPE( Flag ):
 
 class ConstantCurvature:
     @staticmethod
-    def k0( s: np.ndarray, kc: float ):
+    def k0( s: np.ndarray, kc: float, return_callable: bool = False ):
         """
             Intrinsic curvatures of the constant curvature needle
 
             :param s: numpy array of the arclengths
             :param kc: intrinsic curvature constant
+            :param return_callable: (Default = False) returns the callable function
 
             :returns: (k0(s), k0'(s))
         """
-        k0 = kc * np.ones_like( s )
-        k0prime = np.zeros_like( k0 )
+        if return_callable:
+            k0 = lambda s: kc
+            k0prime = lambda s: 0
+
+        # if
+        else:
+            k0 = kc * np.ones_like( s )
+            k0prime = np.zeros_like( k0 )
+
+        # else
 
         return k0, k0prime
 
     # k0
 
     @staticmethod
-    def w0( s: np.ndarray, kc: float, thetaz: float = 0 ):
+    def w0( s: np.ndarray, kc: float, thetaz: float = 0, return_callable: bool = False ):
         """
             Intrinsic curvatures of the constant curvature needle
 
             :param s: numpy array of the arclengths
             :param kc: intrinsic curvature constant
             :param thetaz: (Default = 0) the angle of rotation in the xy plane
+            :param return_callable: (Default = False) returns the callable function
 
             :returns: (k0(s), k0'(s))
         """
-        k0, k0prime = ConstantCurvature.k0( s, kc )
+        k0, k0prime = ConstantCurvature.k0( s, kc, return_callable=return_callable )
 
-        w0 = np.hstack( (k0.reshape( -1, 1 ), np.zeros( (k0.size, 2) )) )  # N x 3
-        w0prime = np.hstack( (k0prime.reshape( -1, 1 ), np.zeros( (k0prime.size, 2) )) )  # N x 3
-
+        # rotate the curvature
         Rz = geometry.rotz( thetaz )
-        w0 = w0 @ Rz.T  # === Rz @ w0.T
-        w0prime = w0prime @ Rz.T  # === Rz @ w0prime.T
+        v = np.array( [ 1, 0, 0 ] ) @ Rz.T
+
+        if return_callable:
+            w0 = lambda s: k0( s ) * v
+            w0prime = lambda s: k0prime( s ) * v
+
+        # if
+        else:
+            w0 = k0 * v
+            w0prime = k0prime * v
+
+        # else
 
         return w0, w0prime
 
@@ -89,7 +107,8 @@ class ConstantCurvature:
 
 class SingleBend:
     @staticmethod
-    def k0_1layer( s: np.ndarray, kc: float, length: float ) -> (np.ndarray, np.ndarray):
+    def k0_1layer( s: np.ndarray, kc: float, length: float, return_callable: bool = False ) -> (
+            Union[ np.ndarray, Callable ], Union[ np.ndarray, Callable ]):
         """
         Intrinsics curvatures of the double layer insertion scenario
         
@@ -99,17 +118,27 @@ class SingleBend:
         :param s: numpy array of the arclengths
         :param kc: intrinsic curvature constant
         :param length: length of needle insertion
+        :param return_callable: (Default = False) returns the callable function
+
         :returns: (k0(s), k0'(s)) numpy arrays of shape s.shape
         """
-        k0 = kc * (1 - s / length) ** 2
-        k0prime = -2 * kc / length * (1 - s / length)
+        if return_callable:
+            k0 = lambda s: kc * (1 - s / length) ** 2
+            k0prime = lambda s: -2 * kc / length * (1 - s / length)
 
+        # if
+        else:
+            k0 = kc * (1 - s / length) ** 2
+            k0prime = -2 * kc / length * (1 - s / length)
+
+        # else
         return k0, k0prime
 
     # k0_1layer
 
     @staticmethod
-    def k0_2layer( s: np.ndarray, kc_1: float, kc_2: float, length: float, s_crit: float ):
+    def k0_2layer( s: np.ndarray, kc_1: float, kc_2: float, length: float, s_crit: float,
+                   return_callable: bool = False ):
         """
         Intrinsics curvatures of the double layer insertion scenario
         
@@ -121,30 +150,65 @@ class SingleBend:
         :param kc_2: intrinsic curvature constant for layer 2
         :param length: length of needle insertion
         :param s_crit: arclength where needle shape boundary is
+        :param return_callable: (Default = False) returns the callable function
         
         :returns: (k0(s), k0'(s)) numpy arrays of shape s.shape
         """
-        # set-up
-        k0 = np.zeros_like( s )
-        k0prime = np.zeros_like( s )
+        if return_callable:
+            def k0( s ):
+                if s <= s_crit:
+                    k0_s = kc_1 * ((s_crit - s) / length) ** 2 + kc_2 * (1 - s_crit / length) * (
+                            1 + s_crit / length - 2 * s / length)
 
-        # first layer processing
-        s_1 = s[ s <= s_crit ]
-        k0_1 = kc_1 * ((s_crit - s_1) / length) ** 2 + kc_2 * (1 - s_crit / length) * (
-                1 + s_crit / length - 2 * s_1 / length)
-        k0prime_1 = -2 * kc_1 / length ** 2 * (s_crit - s_1) - 2 * kc_2 / length * (1 - s_crit / length)
+                # if
+                else:
+                    k0_s = kc_2 * (1 - s / length) ** 2
 
-        # second layer processing
-        s_2 = s[ s > s_crit ]
-        k0_2 = kc_2 * (1 - s_2 / length) ** 2
-        k0prime_2 = -2 * kc_2 / length * (1 - s_2 / length)
+                # else
 
-        # set the return values
-        k0[ s <= s_crit ] = k0_1
-        k0[ s > s_crit ] = k0_2
+                return k0_s
 
-        k0prime[ s <= s_crit ] = k0prime_1
-        k0prime[ s > s_crit ] = k0prime_2
+            # k0
+
+            def k0prime( s ):
+                if s <= s_crit:
+                    k0prime_s = -2 * kc_1 / length ** 2 * (s_crit - s) - 2 * kc_2 / length * (1 - s_crit / length)
+
+                # if
+                else:
+                    k0prime_s = -2 * kc_2 / length * (1 - s / length)
+
+                # else
+
+                return k0prime_s
+
+            # k0prime
+
+        # if
+        else:
+            # set-up
+            k0 = np.zeros_like( s )
+            k0prime = np.zeros_like( s )
+
+            # first layer processing
+            s_1 = s[ s <= s_crit ]
+            k0_1 = kc_1 * ((s_crit - s_1) / length) ** 2 + kc_2 * (1 - s_crit / length) * (
+                    1 + s_crit / length - 2 * s_1 / length)
+            k0prime_1 = -2 * kc_1 / length ** 2 * (s_crit - s_1) - 2 * kc_2 / length * (1 - s_crit / length)
+
+            # second layer processing
+            s_2 = s[ s > s_crit ]
+            k0_2 = kc_2 * (1 - s_2 / length) ** 2
+            k0prime_2 = -2 * kc_2 / length * (1 - s_2 / length)
+
+            # set the return values
+            k0[ s <= s_crit ] = k0_1
+            k0[ s > s_crit ] = k0_2
+
+            k0prime[ s <= s_crit ] = k0prime_1
+            k0prime[ s > s_crit ] = k0prime_2
+
+        # else
 
         return k0, k0prime
 
@@ -152,7 +216,7 @@ class SingleBend:
 
     @staticmethod
     def k0_3layer( s: np.ndarray, kc_1: float, kc_2: float, kc_3: float, length: float, s_crit_1: float,
-                   s_crit_2: float ):
+                   s_crit_2: float, return_callable: bool = False ):
         """
         Intrinsics curvatures of the double layer insertion scenario
 
@@ -166,46 +230,92 @@ class SingleBend:
         :param length: length of needle insertion
         :param s_crit_1: arclength where first needle shape boundary is
         :param s_crit_2: arclength where second needle shape boundary is
+        :param return_callable: (Default = False) returns the callable function
 
         :returns: (k0(s), k0'(s)) numpy arrays of shape s.shape
         """
-        # set-up
-        k0 = np.zeros_like( s )
-        k0prime = np.zeros_like( s )
+        if return_callable:
+            def k0( s ):
+                if s <= s_crit_1:
+                    k0_s = kc_1 * (s_crit_1 - s) ** 2 / length ** 2 + kc_2 * (s_crit_2 - s_crit_1) * (
+                            s_crit_2 + s_crit_1 - 2 * s) / length ** 2 + kc_3 * (1 - s_crit_2 / length) * (
+                                   1 + (s_crit_2 - 2 * s) / length)
 
-        # first layer processing
-        mask_1 = s <= s_crit_1
-        s_1 = s[ mask_1 ]
-        # k0_1 = kc_1 * ((s_crit_1 - s_1) / length) ** 2 + kc_2 * (s_crit_2 - s_crit_1) / length * (
-        #         s_crit_2 + s_crit_1)
-        k0_1 = kc_1 * (s_crit_1 - s_1) ** 2 / length ** 2 + kc_2 * (s_crit_2 - s_crit_1) * (
-                s_crit_2 + s_crit_1 - 2 * s_1) / length ** 2 + kc_3 * (1 - s_crit_2 / length) * (
-                       1 + (s_crit_2 - 2 * s_1) / length)
+                # if
+                elif s <= s_crit_2:
+                    k0_s = kc_2 * (s_crit_2 - s) ** 2 / length ** 2 + kc_3 * (1 - s_crit_2 / length) * (
+                            1 + s_crit_2 / length - 2 * s / length)
 
-        k0prime_1 = -2 * kc_1 / length ** 2 * (s_crit_1 - s_1) - 2 * kc_2 / length ** 2 * (
-                s_crit_2 - s_crit_1) - 2 * kc_3 / length * (1 - s_crit_2 / length)
+                # elif
+                else:
+                    k0_s = kc_3 * (1 - s / length) ** 2
 
-        # second layer processing
-        mask_2 = (s_crit_1 < s) & (s <= s_crit_2)
-        s_2 = s[ mask_2 ]
-        k0_2 = kc_2 * (s_crit_2 - s_2) ** 2 / length ** 2 + kc_3 * (1 - s_crit_2 / length) * (
-                1 + s_crit_2 / length - 2 * s_2 / length)
-        k0prime_2 = -2 * kc_2 / length ** 2 * (s_crit_2 - s_2) - 2 * kc_3 / length * (1 - s_crit_2 / length)
+                # else
 
-        # third layer processing
-        mask_3 = s > s_crit_2
-        s_3 = s[ mask_3 ]
-        k0_3 = kc_3 * (1 - s_3 / length) ** 2
-        k0prime_3 = -2 * kc_3 / length * (1 - s_3 / length)
+                return k0_s
 
-        # set the return values
-        k0[ mask_1 ] = k0_1
-        k0[ mask_2 ] = k0_2
-        k0[ mask_3 ] = k0_3
+            # k0
 
-        k0prime[ mask_1 ] = k0prime_1
-        k0prime[ mask_2 ] = k0prime_2
-        k0prime[ mask_3 ] = k0prime_3
+            def k0prime( s ):
+                if s <= s_crit_1:
+                    k0prime_s = -2 * kc_1 / length ** 2 * (s_crit_1 - s) - 2 * kc_2 / length ** 2 * (
+                            s_crit_2 - s_crit_1) - 2 * kc_3 / length * (1 - s_crit_2 / length)
+
+                # if
+                elif s <= s_crit_2:
+                    k0prime_s = -2 * kc_2 / length ** 2 * (s_crit_2 - s) - 2 * kc_3 / length * (1 - s_crit_2 / length)
+
+                # elif
+                else:
+                    k0prime_s = -2 * kc_3 / length * (1 - s / length)
+
+                # else
+
+                return k0prime_s
+
+            # k0prime
+
+        # if
+        else:
+            # set-up
+            k0 = np.zeros_like( s )
+            k0prime = np.zeros_like( s )
+
+            # first layer processing
+            mask_1 = s <= s_crit_1
+            s_1 = s[ mask_1 ]
+            # k0_1 = kc_1 * ((s_crit_1 - s_1) / length) ** 2 + kc_2 * (s_crit_2 - s_crit_1) / length * (
+            #         s_crit_2 + s_crit_1)
+            k0_1 = kc_1 * (s_crit_1 - s_1) ** 2 / length ** 2 + kc_2 * (s_crit_2 - s_crit_1) * (
+                    s_crit_2 + s_crit_1 - 2 * s_1) / length ** 2 + kc_3 * (1 - s_crit_2 / length) * (
+                           1 + (s_crit_2 - 2 * s_1) / length)
+
+            k0prime_1 = -2 * kc_1 / length ** 2 * (s_crit_1 - s_1) - 2 * kc_2 / length ** 2 * (
+                    s_crit_2 - s_crit_1) - 2 * kc_3 / length * (1 - s_crit_2 / length)
+
+            # second layer processing
+            mask_2 = (s_crit_1 < s) & (s <= s_crit_2)
+            s_2 = s[ mask_2 ]
+            k0_2 = kc_2 * (s_crit_2 - s_2) ** 2 / length ** 2 + kc_3 * (1 - s_crit_2 / length) * (
+                    1 + s_crit_2 / length - 2 * s_2 / length)
+            k0prime_2 = -2 * kc_2 / length ** 2 * (s_crit_2 - s_2) - 2 * kc_3 / length * (1 - s_crit_2 / length)
+
+            # third layer processing
+            mask_3 = s > s_crit_2
+            s_3 = s[ mask_3 ]
+            k0_3 = kc_3 * (1 - s_3 / length) ** 2
+            k0prime_3 = -2 * kc_3 / length * (1 - s_3 / length)
+
+            # set the return values
+            k0[ mask_1 ] = k0_1
+            k0[ mask_2 ] = k0_2
+            k0[ mask_3 ] = k0_3
+
+            k0prime[ mask_1 ] = k0prime_1
+            k0prime[ mask_2 ] = k0prime_2
+            k0prime[ mask_3 ] = k0prime_3
+
+        # else
 
         return k0, k0prime
 
@@ -214,7 +324,7 @@ class SingleBend:
     @staticmethod
     def determine_2layer_boundary( kc1: float, length: float, z_crit, B: np.ndarray, w_init: np.ndarray = None,
                                    s0: float = 0, ds: float = 0.5, R_init: np.ndarray = np.eye( 3 ),
-                                   Binv: np.ndarray = None ):
+                                   Binv: np.ndarray = None, continuous: bool = False ):
         """
             Determine the length of the needle that is inside the first layer only (s_crit)
 
@@ -231,6 +341,7 @@ class SingleBend:
             :param ds: (Default = 0.5) a float tof the ds to integrate
             :param R_init: (Default = 3x3 identity) SO3 matrix for initial rotation angle
             :param Binv: (Default = None) inv(B) Can be provided for numerical efficiency
+            :param continuous: (Default = False) whether to perform continuous integration
 
             :returns: s_crit: the critical arclength (rounded to the resolution of the arclength's ds)
                                 (-1 if not in second-layer yet)
@@ -241,16 +352,29 @@ class SingleBend:
 
         # if
 
-        # compute w0 and w0prime
         s = np.arange( s0, length + ds, ds )
-        k0, k0prime = SingleBend.k0_1layer( s, kc1, length )
-
-        w0 = np.hstack( (k0.reshape(-1,1), np.zeros( (k0.size, 2) )) )
-        w0prime = np.hstack( (k0prime.reshape(-1,1), np.zeros( (k0prime.size, 2) )) )
 
         # compute position of single-layer approximation
-        pmat_single, *_ = numerical.integrateEP_w0( w_init, w0, w0prime, B, s=s, R_init=R_init, Binv=Binv,
-                                                    arg_check=False )
+        if continuous:
+            k0 = lambda s: SingleBend.k0_1layer( s, kc1, length )[ 0 ]
+            k0prime = lambda s: SingleBend.k0_1layer( s, kc1, length )[ 1 ]
+
+            w0 = lambda s: np.append( k0( s ), [ 0, 0 ] )
+            w0prime = lambda s: np.append( k0prime( s ), [ 0, 0 ] )
+
+            pmat_single, *_ = numerical.integrateEP_w0_ode( w_init, w0, w0prime, B, s=s, R_init=R_init, Binv=Binv,
+                                                            arg_check=False )
+        # if
+        else:
+            k0, k0prime = SingleBend.k0_1layer( s, kc1, length )
+
+            w0 = np.hstack( (k0.reshape( -1, 1 ), np.zeros( (k0.size, 2) )) )
+            w0prime = np.hstack( (k0prime.reshape( -1, 1 ), np.zeros( (k0prime.size, 2) )) )
+
+            pmat_single, *_ = numerical.integrateEP_w0( w_init, w0, w0prime, B, s=s, R_init=R_init, Binv=Binv,
+                                                        arg_check=False )
+
+        # else
 
         # determine the point closest (but after) the boundary
         dz = pmat_single[ :, 2 ] - z_crit
@@ -273,7 +397,8 @@ class SingleBend:
 
 class DoubleBend:
     @staticmethod
-    def k0_1layer( s: np.ndarray, kc: float, length: float, s_crit: float, p: float = 2 / 3 ):
+    def k0_1layer( s: np.ndarray, kc: float, length: float, s_crit: float, p: float = 2 / 3,
+                   return_callable: bool = False ):
         """
             Intrinsics curvatures of the double layer insertion scenario
 
@@ -285,29 +410,67 @@ class DoubleBend:
             :param length: length of needle insertion
             :param s_crit: the 180 degree turn insertion depth
             :param p: (Default = 2/3) float of the kappa_c scaling parameter
+            :param return_callable: (Default = False) returns the callable function
+
             :returns: (k0(s), k0'(s)) numpy arrays of shape s.shape
         """
-        # arclength setups (before & after double-bend)
-        s1 = s[ s <= s_crit ]
-        s2 = s[ s >= s_crit ]
+        if return_callable:
+            # scale kappa_c values
+            kc1 = kc * (s_crit / length) ** p
+            kc2 = kc * (1 - s_crit / length) ** p
 
-        # kappa_c values
-        kc1 = kc * ((s1.max() - s1.min()) / length) ** p
-        kc2 = kc * ((s2.max() - s2.min()) / length) ** p
+            def k0( s ):
+                if s < s_crit:
+                    k0_s = kc1 * (1 - s / length) ** 2
 
-        # kappa_0 calculations
-        k0_1 = kc1 * (1 - s1 / length) ** 2
-        k0_2 = -kc2 * (1 - s2 / length) ** 2
-        k0_12 = 1 / 2 * (k0_1[ -1 ] + k0_2[ 0 ])
+                elif s == s_crit:
+                    k0_s = 1 / 2 * (kc1 - kc2) * (1 - s / length) ** 2
 
-        k0 = np.hstack( (k0_1[ :-1 ], k0_12, k0_2[ 1: ]) )
+                else:
+                    k0_s = -kc2 * (1 - s / length) ** 2
 
-        # kappa_0' calculations
-        k0prime_1 = -2 * kc1 / length * (1 - s1 / length)
-        k0prime_2 = -2 * kc1 / length * (1 - s2 / length)
-        k0prime_12 = 1 / 2 * (k0prime_1[ -1 ] + k0prime_2[ 0 ])
+                return k0_s
 
-        k0prime = np.hstack( (k0prime_1[ :-1 ], k0prime_12, k0prime_2[ 1: ]) )
+            # k0
+
+            def k0prime( s ):
+                if s < s_crit:
+                    k0prime_s = -2 * kc1 / length * (1 - s1 / length)
+
+                elif s == s_crit:
+                    k0prime_s = -(kc1 - kc2) * (1 - s / length)
+
+                else:
+                    k0prime_s = -2 * kc2 / length * (1 - s2 / length)
+
+                return k0prime_s
+
+            # k0prime
+        # if
+        else:
+            # arclength setups (before & after double-bend)
+            s1 = s[ s <= s_crit ]
+            s2 = s[ s >= s_crit ]
+
+            # kappa_c values
+            kc1 = kc * ((s1.max() - s1.min()) / length) ** p
+            kc2 = kc * ((s2.max() - s2.min()) / length) ** p
+
+            # kappa_0 calculations
+            k0_1 = kc1 * (1 - s1 / length) ** 2
+            k0_2 = -kc2 * (1 - s2 / length) ** 2
+            k0_12 = 1 / 2 * (k0_1[ -1 ] + k0_2[ 0 ])
+
+            k0 = np.hstack( (k0_1[ :-1 ], k0_12, k0_2[ 1: ]) )
+
+            # kappa_0' calculations
+            k0prime_1 = -2 * kc1 / length * (1 - s1 / length)
+            k0prime_2 = -2 * kc2 / length * (1 - s2 / length)
+            k0prime_12 = 1 / 2 * (k0prime_1[ -1 ] + k0prime_2[ 0 ])
+
+            k0prime = np.hstack( (k0prime_1[ :-1 ], k0prime_12, k0prime_2[ 1: ]) )
+
+        # else
 
         return k0, k0prime
 

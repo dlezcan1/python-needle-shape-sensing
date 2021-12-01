@@ -5,16 +5,23 @@ Library of numerical computations for needle shape sensing
 Author: Dimitri Lezcano
 
 """
+import warnings
+from typing import Union, Callable
+
 import numpy as np
+import scipy.integrate.odepack
 import scipy.optimize as spoptim
+from scipy.integrate import odeint
+from scipy import interpolate
 from spatialmath.base import exp2r
+from numba import jit
 
 from . import geometry, cost_functions
 from .sensorized_needles import FBGNeedle
 
 
 class NeedleParamOptimizations:
-    def __init__( self, fbgneedle: FBGNeedle, ds: float = 0.5, optim_options: dict = None ):
+    def __init__( self, fbgneedle: FBGNeedle, ds: float = 0.5, optim_options: dict = None, continuous: bool = True ):
         assert (ds > 0)
         self.fbg_needle = fbgneedle
 
@@ -31,6 +38,9 @@ class NeedleParamOptimizations:
                             }
         self.options = default_options
         self.options.update( optim_options if optim_options is not None else { } )
+
+        # integration options
+        self.continuous = continuous
 
     # __init__
 
@@ -104,6 +114,7 @@ class NeedleParamOptimizations:
         cost_fn = lambda eta: cost_functions.singlebend_singlelayer_cost( eta, data_ins, s_data_ins, self.ds,
                                                                           self.fbg_needle.B,
                                                                           scalef=c_f, arg_check=False,
+                                                                          continuous=self.continuous,
                                                                           **cost_kwargs )
         res = self.__optimize( cost_fn, eta_0, **kwargs )
         kc, w_init = res.x[ 0 ], res.x[ 1:4 ]
@@ -158,6 +169,7 @@ class NeedleParamOptimizations:
         cost_fn = lambda eta: cost_functions.singlebend_doublelayer_cost( eta, data_ins, s_data_ins, self.ds,
                                                                           self.fbg_needle.B,
                                                                           scalef=c_f, arg_check=False,
+                                                                          continuous=self.continuous,
                                                                           **cost_kwargs )
         res = self.__optimize( cost_fn, eta_0, **kwargs )
         kc1, kc2, w_init = res.x[ 0 ], res.x[ 1 ], res.x[ 2:5 ]
@@ -208,6 +220,7 @@ class NeedleParamOptimizations:
         cost_fn = lambda eta: cost_functions.doublebend_singlelayer_cost( eta, data_ins, s_data_ins, self.ds,
                                                                           s_crit, self.__needle_B,
                                                                           scalef=c_f, arg_check=False,
+                                                                          continuous=self.continuous,
                                                                           **cost_kwargs )
         res = self.__optimize( cost_fn, eta_0, **kwargs )
 
@@ -231,12 +244,68 @@ class NeedleParamOptimizations:
 
         # bounds
 
-        return spoptim.minimize( cost_fn, eta_0, **optim_options )
+        # perform optimization
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", scipy.integrate.odepack.ODEintWarning)
+            result = spoptim.minimize( cost_fn, eta_0, **optim_options )
+
+        # with
+
+        return result
 
     # __optimize
 
 
 # NeedleParamOptimizations
+
+@jit( nopython=True, parallel=True )
+def jit_linear_interp1d( t: float, x_all: np.ndarray, t_all: np.ndarray, is_sorted: bool = False ):
+    """ numba 1d linear interpolation"""
+    if not is_sorted:
+        idxs = np.argsort( t_all )
+        t_all = t_all[ idxs ]
+        x_all = x_all[ idxs ]
+
+    # if
+    if t in t_all:
+        return x_all[ t == t_all ]
+
+    else:
+        t1_idx = np.argmin( np.abs( t - t_all ) )
+        t1 = t_all[ t1_idx ]
+        x1 = x_all[ t1 ]
+
+        t2_idx = t1_idx + 1 if t1 < t else t1_idx - 1
+        t2 = t_all[ t2_idx ]
+        x2 = x_all[ t2 ]
+
+        return x1 + (x2 - x1) * (t - t1) / (t2 - t1)
+
+    # else
+
+
+# jit_linear_interp1d
+
+# @jit( nopython=True, parallel=True )
+def differential_EPeq( wv: np.ndarray, s: float, w0, w0prime, B: np.ndarray, Binv: np.ndarray ):
+    """ The differential form of the Euler-Poincare equation equation
+
+        :param wv: the current omega v
+        :param s: the current arclength
+        :param w0: the intrinsic angular deformation
+        :param w0prime: d(w0)/ds
+        :param B: the stiffness matrix
+        :param Binv: the inverse of the stiffness matrix
+
+        :returns: dwv/ds
+
+    """
+    dwvds = w0prime( s ).ravel() - Binv @ np.cross( wv, B @ (wv - w0( s ).ravel()) )
+
+    return dwvds
+
+
+# differential_EPeq
 
 def integrateEP_w0( w_init: np.ndarray, w0: np.ndarray, w0prime: np.ndarray, B: np.ndarray,
                     s: np.ndarray = None, s0: float = 0, ds: float = None, R_init: np.ndarray = np.eye( 3 ),
@@ -311,14 +380,14 @@ def integrateEP_w0( w_init: np.ndarray, w0: np.ndarray, w0prime: np.ndarray, B: 
     wv[ 0 ] = w_init
 
     # perform integration to calculate angular deformation vector
-    for i in range( 1, N ):
-        ds = s[ i ] - s[ i - 1 ]  # calculate ds
-        if i == 1:
-            wv[ i ] = w_init + ds * (w0prime[ 0 ] - Binv @ np.cross( wv[ 0 ], B @ (w_init - w0[ 0 ]) ))
+    for idx in range( 1, N ):
+        ds = s[ idx ] - s[ idx - 1 ]  # calculate ds
+        if idx == 1:
+            wv[ idx ] = w_init + ds * (w0prime[ 0 ] - Binv @ np.cross( wv[ 0 ], B @ (w_init - w0[ 0 ]) ))
 
         else:
-            wv[ i ] = wv[ i - 2 ] + 2 * ds * (
-                    w0prime[ i - 1 ] - Binv @ np.cross( wv[ i - 1 ], B @ (wv[ i - 1 ] - w0[ i - 1 ]) ))
+            wv[ idx ] = wv[ idx - 2 ] + 2 * ds * (
+                    w0prime[ idx - 1 ] - Binv @ np.cross( wv[ idx - 1 ], B @ (wv[ idx - 1 ] - w0[ idx - 1 ]) ))
 
     # for
 
@@ -332,6 +401,82 @@ def integrateEP_w0( w_init: np.ndarray, w0: np.ndarray, w0prime: np.ndarray, B: 
 
 
 # integrateEP_w0
+
+def integrateEP_w0_ode( w_init: np.ndarray, w0: Union[ Callable, np.ndarray ], w0prime: Union[ Callable, np.ndarray ],
+                        B: np.ndarray, s: np.ndarray, s0: float = 0, ds: float = None,
+                        R_init: np.ndarray = np.eye( 3 ), Binv: np.ndarray = None, arg_check: bool = True,
+                        wv_only: bool = False ) -> (np.ndarray, np.ndarray, np.ndarray):
+    """ integrate Euler-Poincare equation for needle shape sensing for given intrinsic angular deformation
+        using scipy.integrate
+
+        Author: Dimitri Lezcano
+
+        Args:
+            w_init: 3-D initial deformation vector
+            w0: Callable function or N x 3 intrinsic angular deformation
+            w0prime: Callable function or N x 3 d/ds w0
+            B: 3 x 3 needle stiffness matrix
+            s: the arclengths desired (Not implemented)
+            s0: (Default = 0) the initial length to start off with
+            ds: (Default = None) the arclength increments desired
+            Binv: (Default = None) inv(B) Can be provided for numerical efficiency
+            R_init: (Default = 3x3 identity) SO3 matrix for initial rotation angle
+            arg_check: (Default = False) whether to check if the arguments are valid
+            wv_only: (Default = False) whether to only integrate wv or not.
+
+        Return:
+            (N x 3 needle shape, N x 3 x 3 SO3 matrices of orientations), N x 3 angular deformation)
+            (None, None, N x 3 angular deformation) if 'wv_only' is True
+    """
+    if arg_check:
+        assert (w_init.size == 3)
+        w_init = w_init.flatten()
+
+        assert (B.shape == (3, 3))
+        assert (geometry.is_SO3( R_init ))
+
+        assert (s0 >= 0)
+
+    # if
+
+    # argument parsing
+    s = s[ s >= s0 ]
+
+    if Binv is None:
+        Binv = np.linalg.inv( B )
+
+    elif arg_check:
+        assert (Binv.shape == (3, 3))
+
+    # setup intrinsic curvature functions
+    if callable( w0 ):
+        w0_fn = w0
+    else:
+        w0_fn = interpolate.interp1d( s, w0.T, fill_value='extrapolate' )
+        # w0_fn = lambda t: jit_linear_interp1d( t, w0, s )
+
+    if callable( w0prime ):
+        w0prime_fn = w0prime
+    else:
+        w0prime_fn = interpolate.interp1d( s, w0prime.T, fill_value='extrapolate' )
+        # w0prime_fn = lambda t: jit_linear_interp1d( t, w0prime, s )
+
+    # perform integration
+    ode_EP = lambda s, wv: differential_EPeq( wv, s, w0_fn, w0prime_fn, B, Binv )
+    wv = odeint( ode_EP, w_init, s, full_output=False, hmin=ds/2, h0=ds/2, tfirst=True )
+    # wv = solve_ivp( ode_EP, (s0, s.max()), w_init, method='RK45', t_eval=s,
+    #                 first_step=ds )  # 'RK23' for speed (all slower than odeint)
+
+    # integrate angular deviation vector in order to get the pose
+    if wv_only:
+        pmat, Rmat = None, None
+    else:
+        pmat, Rmat = integratePose_wv( wv, s=s, s0=s0, ds=ds, R_init=R_init )
+
+    return pmat, Rmat, wv
+
+
+# integrateEP_w0_ode
 
 def integratePose_wv( wv, s: np.ndarray = None, s0: float = 0, ds: float = None, R_init: np.ndarray = np.eye( 3 ) ):
     """ Integrate angular deformation to get the pose of the needle along it's arclengths
