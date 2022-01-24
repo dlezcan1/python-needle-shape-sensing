@@ -112,7 +112,8 @@ def singlebend_singlelayer_cost( eta: np.ndarray, data: np.ndarray, s_m: Union[ 
     # else
 
     # determine AA locations
-    s_m_idx = np.argwhere( s_m.reshape( -1, 1 ) == s.ravel() )[ :, 1 ]
+    # s_m_idx = np.argwhere( s_m.reshape( -1, 1 ) == s.ravel() )[ :, 1 ]
+    s_m_idx = np.argmin(np.abs(s_m.reshape(-1,1) - s.ravel()), axis=1)
 
     # compute cost
     cost = scalef * curvature_cost( data, wv, s_m_idx, weights=weights )
