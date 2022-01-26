@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
         name='needle-shape-sensing',
-        version='0.1.2',
+        version='0.1.3',
         author='Dimitri Lezcano',
         author_email='dlezcan1@jhu.edu',
         packages=[ 'needle_shape_sensing' ],
@@ -14,7 +14,8 @@ setup(
                 'numpy',
                 'scipy',
                 'spatialmath-python',
-                'sympy'
+                'sympy',
+                'numba'
                 ],
         classifiers=[
                 'Operating System :: OS Independent',
