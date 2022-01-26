@@ -289,7 +289,8 @@ def rotm2quat( R: np.ndarray ) -> np.ndarray:
 
     theta, w = rotm2axangle( R )
     w = w.astype( float )
-    w /= np.linalg.norm( w )
+    if np.linalg.norm(w) > 0:
+        w /= np.linalg.norm( w )
 
     return np.append( np.cos( theta / 2 ), np.sin( theta / 2 ) * w )
 

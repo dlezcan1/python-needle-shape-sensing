@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
         name='needle-shape-sensing',
-        version='0.1.0',
+        version='0.1.1',
         author='Dimitri Lezcano',
         author_email='dlezcan1@jhu.edu',
         packages=[ 'needle_shape_sensing' ],
@@ -13,7 +13,8 @@ setup(
         install_requires=[
                 'numpy',
                 'scipy',
-                'spatialmath-python'
+                'spatialmath-python',
+                'sympy'
                 ],
         classifiers=[
                 'Operating System :: OS Independent',
