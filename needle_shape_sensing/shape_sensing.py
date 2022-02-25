@@ -79,7 +79,7 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
     # from_FBGNeedle
 
     def get_needle_shape( self, *args, **kwargs ):
-        """ Determine the 3D needle shape of the current shape-sensing needle
+        """ Determine the 3D needle shape of the current shape-sensing needle within a specific insertion depth
 
         Example (Single-Bend Single-Layer)
             pmat, Rmat = ss_fbgneedle.get_needle_shape(kc_i, w_init_i, R_init=R_init)

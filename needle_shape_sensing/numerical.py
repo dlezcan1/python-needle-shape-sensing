@@ -523,6 +523,30 @@ def integratePose_wv( wv, s: np.ndarray = None, s0: float = 0, ds: float = None,
 
 # integratePose_wv
 
+def interpolate_curve_s(points: np.ndarray, s_interp: np.ndarray, axis=0):
+    """ Interpolate a curve based on its arclength via linear interpolation
+
+        :param points: the points to interpolate by (N x M array)
+        :param s_interp: 1D array of arclengths to interpolate
+        :param axis: (Default=0), the axis to perform the interpolation on.
+
+        :return: Interpolated curve points w.r.t s_interp, s_interp
+
+
+    """
+    # get the arclengths of the curve
+    L, s = geometry.arclength(points, axis=axis)
+
+    s_interp = s_interp[(s_interp <= L) & (s_interp >= s.min())] # cut-off extrapolated curve values
+
+    # begin interpolation
+    points_interp = interpolate.interp1d(s, points, axis=axis)(s_interp)
+
+    return points_interp, s_interp
+
+
+# interpolate_curve_s
+
 
 def simpson_vec_int( f: np.ndarray, dx: float ) -> np.ndarray:
     """ Implementation of Simpson vector integration

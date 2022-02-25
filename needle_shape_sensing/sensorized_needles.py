@@ -267,8 +267,8 @@ class FBGNeedle( Needle ):
 
     # __str__
 
-    def __repr__(self):
-        return "FBGneedle:" + str(self)
+    def __repr__( self ):
+        return "FBGneedle:" + str( self )
 
     # __repr__
 
@@ -297,6 +297,12 @@ class FBGNeedle( Needle ):
         return self._num_channels
 
     # num_channels
+
+    @property
+    def num_signals( self ):
+        return self.num_channels * self.num_activeAreas
+
+    # num_signals
 
     @property
     def sensor_calibrated( self ):
@@ -546,7 +552,7 @@ class FBGNeedle( Needle ):
         aa_assignments = self.assignments_aa()
 
         if isinstance( raw_signals, dict ):
-            proc_signals = np.zeros( self.num_channels * self.num_activeAreas )
+            proc_signals = np.zeros( self.num_signals )
             raw_signals = { }
             for aa_i, raw_signal in raw_signals.items():
                 # get the appropriate calibration matrix
@@ -562,8 +568,9 @@ class FBGNeedle( Needle ):
 
             # temperature compensate
             if temp_comp:
-                proc_signals = fbg_signal_processing.temperature_compensation( proc_signals, self.num_channels,
-                                                                               self.num_activeAreas )
+                # proc_signals = fbg_signal_processing.temperature_compensation( proc_signals, self.num_channels,
+                #                                                                self.num_activeAreas )
+                proc_signals = self.temperature_compensate(proc_signals, arg_check=False)
 
             # if
 
@@ -575,8 +582,9 @@ class FBGNeedle( Needle ):
             # process the signals
             proc_signals = fbg_signal_processing.process_signals( raw_signals, self.ref_wavelengths )
             if temp_comp:
-                proc_signals = fbg_signal_processing.temperature_compensation( proc_signals, self.num_channels,
-                                                                               self.num_activeAreas )
+                # proc_signals = fbg_signal_processing.temperature_compensation( proc_signals, self.num_channels,
+                #                                                                self.num_activeAreas )
+                proc_signals = self.temperature_compensate( proc_signals, arg_check=False )
 
             # if
 
@@ -845,9 +853,45 @@ class FBGNeedle( Needle ):
 
     # set_weights
 
+    def temperature_compensate( self, proc_signals: np.ndarray, arg_check: bool = True ) -> np.ndarray:
+        """ Perform temperature compensation for processed signals
+
+            :param proc_signals: numpy array of processed signals (N x (# CHs x #AAs) size)
+            :param arg_check: boolean of whether to check the input arguments or not
+
+            :return: temperature compensated signals of the same size as proc_signals
+        """
+        # check size of signals
+        if arg_check:
+            if proc_signals.ndim == 1 and proc_signals.shape[ 0 ] != self.num_signals:
+                raise AttributeError( "Size of processed signals is incorrect." )
+
+            elif proc_signals.ndim == 2 and proc_signals.shape[ 1 ] != self.num_signals:
+                raise AttributeError( "Size of processed signals is incorrect." )
+
+            elif proc_signals.ndim > 2 or proc_signals.ndim < 1:
+                raise AttributeError( "Size of processed signals must be a 1D vector or 2D matrix." )
+
+        # if
+
+        # get AA assignments
+        aa_assignments = np.array( self.__assignments_aa() )
+        proc_signals_Tcomp = proc_signals.copy()
+
+        # iterate through active areas
+        for aa_i in range( 1, self.num_activeAreas + 1 ):
+            aa_i_mask = (aa_assignments == aa_i)  # pick out the active areas
+
+            mean_aai_signals = np.mean( proc_signals[ :, aa_i_mask ], axis=1, keepdims=True )
+            proc_signals_Tcomp[ :, aa_i_mask ] -= mean_aai_signals  # T compensation
+
+        # for
+
+        return proc_signals_Tcomp
+
+    # temperature_compensation
 
 # class: FBGNeedle
-
 
 
 def __get_argparser() -> argparse.ArgumentParser:

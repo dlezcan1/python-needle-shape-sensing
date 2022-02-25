@@ -12,6 +12,32 @@ import numpy as np
 from spatialmath import SO2, SO3, SE3
 
 
+def arclength( points: np.ndarray, axis: int = 0 ):
+    """ Compute the arclength of a curve
+
+        :param points: An N x M numpy array  of curve points
+        :param axis: the axis in which the points are given by
+
+        :return: (total length, arclength for each point
+
+    """
+    # if (axis == 1):
+    #     points = points.T # transpose the matrix
+    #
+    # # if
+
+    # compute differences
+    dpoints = np.diff( points, axis=axis )
+    ds = np.linalg.norm( dpoints, axis=(axis + 1) % 2 )
+
+    # compute lengths
+    s = np.append( [ 0 ], np.cumsum( ds ) )
+
+    return np.max( s ), s
+
+
+# arclength
+
 def axangle2rotm( theta: Union[ float, np.ndarray ], w: np.ndarray ) -> np.ndarray:
     """ Compute a rotation matrix from the axis angle representation
 
@@ -289,7 +315,7 @@ def rotm2quat( R: np.ndarray ) -> np.ndarray:
 
     theta, w = rotm2axangle( R )
     w = w.astype( float )
-    if np.linalg.norm(w) > 0:
+    if np.linalg.norm( w ) > 0:
         w /= np.linalg.norm( w )
 
     return np.append( np.cos( theta / 2 ), np.sin( theta / 2 ) * w )

@@ -20,7 +20,7 @@ def process_signals( signals:np.ndarray, ref_wavelengths:np.ndarray ) -> np.ndar
 # process_signals
 
 def temperature_compensation( signal_shifts, num_channels: int, num_active_areas: int ):
-    """ Perform temperature compensation over the signal shits
+    """ Perform temperature compensation over the signal shits for FBG signals
 
         signal_shifts: numpy array of size (N, num_channels*num_active_areas)
         num_channels: int of the number of channels for the FBG needle

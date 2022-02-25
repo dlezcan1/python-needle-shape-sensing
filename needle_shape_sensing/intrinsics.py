@@ -24,6 +24,112 @@ class SHAPETYPE( Flag ):
 
 # enum class: SHAPETYPES
 
+class AirDeflection:
+    @staticmethod
+    def shape( s: np.ndarray, insertion_point: np.ndarray, cubic_fit: bool = False ):
+        """
+            Get the shape from in-air deflection.
+
+            :param s: Arclengths of the needle to consider (cut-off so within insertion point region)
+            :param insertion_point: the point (relative to needle base coordinate frame (0,0,0) where insertion is
+            :param cubic_fit: (bool, Default=False), whether to use cubic fitting or rollback to quadratic fit.
+
+            :return: numpy array of 3D points of the needle deflected in air.
+
+        """
+        if cubic_fit:  # mechanical modelling fit
+            points = AirDeflection.shape_cubic( s, insertion_point )
+
+        else:  # quadratic fit
+            points = AirDeflection.shape_quadratic( s, insertion_point )
+
+        return points
+
+    # shape
+
+    @staticmethod
+    def shape_cubic( s: np.ndarray, insertion_point: np.ndarray ):
+        """
+            Get the shape from in-air deflection using cubic fit from mechanical modelling.
+
+            :param s: Arclengths of the needle to consider (cut-off so within insertion point region)
+            :param insertion_point: the point (relative to needle base coordinate frame (0,0,0) where insertion is
+
+            :return: numpy array of 3D points of the needle deflected in air.
+
+        """
+        # length of entry point approximation # TODO: update for more accurate modelling
+        L_entry = np.linalg.norm( insertion_point )
+
+        # fit beam mechanics-based cubic polynomial based on insertion point
+        z_ins = insertion_point[ 2 ]
+        a_xy = insertion_point[ 0:2 ] / (z_ins ** 3 - 3 * L_entry * z_ins ** 2)
+
+        # generate z-poitns
+        s = np.unique( s )
+        dz = np.min( np.abs( np.diff( s ) ) )
+        z = np.linspace( 0, z_ins, int( z_ins // dz ) + 1 )
+
+        # compute points along z-axis
+        points_z = np.hstack( (a_xy.reshape( 1, -1 ) * (z ** 3 - 3 * L_entry * z_ins ** 2).reshape( -1, 1 ),
+                               z.reshape( -1, 1 )) )
+
+        L, _ = geometry.arclength( points_z, axis=0 )
+
+        # interpolate to get s
+        s = s[ s <= L ]  # cut-off extrapolated features
+        points, _ = numerical.interpolate_curve_s( points_z, s, axis=0 )
+
+        return points
+
+    # shape_cubic
+
+    @staticmethod
+    def shape_quadratic( s: np.ndarray, insertion_point: np.ndarray ):
+        """
+            Get the shape from in-air deflection using quadratic fit.
+
+            :param s: Arclengths of the needle to consider (cut-off so within insertion point region)
+            :param insertion_point: the point (relative to needle base coordinate frame (0,0,0) where insertion is
+
+            :return: numpy array of 3D points of the needle deflected in air.
+
+        """
+        # fit parabola based on insertion point
+        z_ins = insertion_point[ 2 ]
+        a_xy = insertion_point[ 0:2 ] / z_ins ** 2
+        a_xy_norm = np.linalg.norm( a_xy )
+
+        # determine z-coordinates to use based on arclengths
+        if a_xy_norm > 0:
+            s_tot = (z_ins * np.sqrt( 1 + 4 * (a_xy_norm ** 2) * (z_ins ** 2) ) + np.arcsinh(
+                    2 * a_xy_norm * z_ins ) / (
+                             2 * a_xy_norm)) / 2
+
+        # if
+        else:  # straight needle
+            s_tot = z_ins
+
+        # else
+
+        s = np.unique( s[ s <= s_tot ] )  # remove longer and duplicate and sort
+
+        dz = np.min( np.abs( np.diff( s ) ) )
+        z = np.linspace( 0, z_ins, int( z_ins // dz + 1 ) )
+
+        # compute 3D points
+        points_z = np.hstack( (a_xy.reshape( 1, -1 ) * z.reshape( -1, 1 ) ** 2, z.reshape( -1, 1 )) )
+
+        # interpolate to get s
+        points, _ = numerical.interpolate_curve_s( points_z, s, axis=0 )
+
+        return points
+
+    # shape_quadratic
+
+
+# class: AirDeflection
+
 class ConstantCurvature:
     @staticmethod
     def k0( s: np.ndarray, kc: float, return_callable: bool = False ):
