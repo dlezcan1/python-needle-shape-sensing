@@ -430,7 +430,7 @@ class SingleBend:
     @staticmethod
     def determine_2layer_boundary( kc1: float, length: float, z_crit, B: np.ndarray, w_init: np.ndarray = None,
                                    s0: float = 0, ds: float = 0.5, R_init: np.ndarray = np.eye( 3 ),
-                                   Binv: np.ndarray = None, continuous: bool = False ):
+                                   Binv: np.ndarray = None, needle_rotations: list = None, continuous: bool = False ):
         """
             Determine the length of the needle that is inside the first layer only (s_crit)
 
@@ -447,6 +447,7 @@ class SingleBend:
             :param ds: (Default = 0.5) a float tof the ds to integrate
             :param R_init: (Default = 3x3 identity) SO3 matrix for initial rotation angle
             :param Binv: (Default = None) inv(B) Can be provided for numerical efficiency
+            :param needle_rotations: (Default = None) list of needle axis rotations in radians
             :param continuous: (Default = False) whether to perform continuous integration
 
             :returns: s_crit: the critical arclength (rounded to the resolution of the arclength's ds)
@@ -469,7 +470,7 @@ class SingleBend:
             w0prime = lambda s: np.append( k0prime( s ), [ 0, 0 ] )
 
             pmat_single, *_ = numerical.integrateEP_w0_ode( w_init, w0, w0prime, B, s=s, R_init=R_init, Binv=Binv,
-                                                            arg_check=False )
+                                                            arg_check=False, needle_rotations=needle_rotations )
         # if
         else:
             k0, k0prime = SingleBend.k0_1layer( s, kc1, length )
@@ -478,7 +479,7 @@ class SingleBend:
             w0prime = np.hstack( (k0prime.reshape( -1, 1 ), np.zeros( (k0prime.size, 2) )) )
 
             pmat_single, *_ = numerical.integrateEP_w0( w_init, w0, w0prime, B, s=s, R_init=R_init, Binv=Binv,
-                                                        arg_check=False )
+                                                        arg_check=False, needle_rotations=needle_rotations )
 
         # else
 

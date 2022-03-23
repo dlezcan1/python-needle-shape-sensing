@@ -4,11 +4,13 @@ from . import numerical, intrinsics, geometry, sensorized_needles
 
 
 class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
-    def __init__( self, length: float, serial_number: str, num_channels: int, sensor_location=None,
-                  calibration_mats=None, weights=None, ds: float = 0.5, current_depth: float = 0,
-                  optim_options: dict = None, cts_integration: bool = True, **kwargs ):
-        super().__init__( length, serial_number, num_channels, sensor_location=sensor_location,
-                          calibration_mats=calibration_mats, weights=weights, **kwargs )
+    def __init__(
+            self, length: float, serial_number: str, num_channels: int, sensor_location=None,
+            calibration_mats=None, weights=None, ds: float = 0.5, current_depth: float = 0,
+            optim_options: dict = None, cts_integration: bool = True, **kwargs ):
+        super().__init__(
+                length, serial_number, num_channels, sensor_location=sensor_location,
+                calibration_mats=calibration_mats, weights=weights, **kwargs )
 
         # current insertion parameters
         self.current_depth = current_depth
@@ -18,9 +20,11 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
         self.insertion_parameters = { }
 
         # define needle shape-sensing optimizers
-        self.optimizer = numerical.NeedleParamOptimizations( self, ds=ds, optim_options=optim_options,
-                                                             continuous=cts_integration )
+        self.optimizer = numerical.NeedleParamOptimizations(
+                self, ds=ds, optim_options=optim_options,
+                continuous=cts_integration )
         self.current_kc = [ 0 ]
+        self.current_rotations = [ 0 ] * int(self.length // self.ds + 1)  # radians
         self.current_winit = np.zeros( 3 )
 
     # __init__
@@ -68,13 +72,14 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
 
             :return: ShapeSensingFBGNeedle with the current FBGNeedle
         """
-        return ShapeSensingFBGNeedle( fbgneedle.length, fbgneedle.serial_number, fbgneedle.num_channels,
-                                      sensor_location=fbgneedle.sensor_location,
-                                      calibration_mats=fbgneedle.cal_matrices,
-                                      weights=fbgneedle.weights,
-                                      diameter=fbgneedle.diameter, Emod=fbgneedle.Emod,
-                                      pratio=fbgneedle.pratio,
-                                      **kwargs )
+        return ShapeSensingFBGNeedle(
+                fbgneedle.length, fbgneedle.serial_number, fbgneedle.num_channels,
+                sensor_location=fbgneedle.sensor_location,
+                calibration_mats=fbgneedle.cal_matrices,
+                weights=fbgneedle.weights,
+                diameter=fbgneedle.diameter, Emod=fbgneedle.Emod,
+                pratio=fbgneedle.pratio,
+                **kwargs )
 
     # from_FBGNeedle
 
@@ -102,6 +107,7 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
         # kwargs get
         R_init = kwargs.get( 'R_init', np.eye( 3 ) )
         s = np.arange( 0, self.current_depth + self.ds, self.ds )
+        current_rotations = self.current_rotations[ -int(self.current_depth // self.ds - 1): ]
 
         # initial checks
         pmat, Rmat = None, None
@@ -117,7 +123,8 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
 
             if self.current_shapetype == intrinsics.SHAPETYPE.CONSTANT_CURVATURE:
                 # determine parameters
-                curvature = self.optimizer.constant_curvature( self.current_curvatures.T, self.current_depth )
+                curvature = self.optimizer.constant_curvature(
+                        self.current_curvatures.T, self.current_depth )
                 curvature = np.append( curvature, 0 )  # ensure 3 vector
                 pmat, Rmat = intrinsics.ConstantCurvature.shape( s, curvature )
 
@@ -138,14 +145,16 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
                 # else
 
                 # determine parameters
-                kc, w_init, _ = self.optimizer.singlebend_singlelayer_k0( kc_i, w_init_i, self.current_curvatures.T,
-                                                                          self.current_depth, R_init=R_init, **kwargs )
+                kc, w_init, _ = self.optimizer.singlebend_singlelayer_k0(
+                        kc_i, w_init_i, self.current_curvatures.T,
+                        self.current_depth, R_init=R_init, needle_rotations=current_rotations, **kwargs )
                 self.current_kc = [ kc ]
                 self.current_winit = w_init
 
                 # determine k0 and k0prime
-                k0, k0prime = intrinsics.SingleBend.k0_1layer( s, kc, self.current_depth,
-                                                               return_callable=self.continuous_integration )
+                k0, k0prime = intrinsics.SingleBend.k0_1layer(
+                        s, kc, self.current_depth,
+                        return_callable=self.continuous_integration )
 
             # if: single-bend single-layer
 
@@ -164,20 +173,23 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
                 # else
 
                 # determine parameters
-                kc1, kc2, w_init, _ = self.optimizer.singlebend_doublelayer_k0( kc1_i, kc2_i, w_init_i,
-                                                                                self.current_curvatures.T,
-                                                                                self.current_depth, z_crit=z_crit,
-                                                                                R_init=R_init )
+                kc1, kc2, w_init, _ = self.optimizer.singlebend_doublelayer_k0(
+                        kc1_i, kc2_i, w_init_i,
+                        self.current_curvatures.T,
+                        self.current_depth, z_crit=z_crit,
+                        R_init=R_init, needle_rotations=current_rotations )
                 self.current_kc = [ kc1, kc2 ]
                 self.current_winit = w_init
-                s_crit = intrinsics.SingleBend.determine_2layer_boundary( kc1, self.current_depth, z_crit, self.B,
-                                                                          w_init=w_init, s0=0, ds=self.ds,
-                                                                          R_init=R_init,
-                                                                          continuous=self.continuous_integration )
+                s_crit = intrinsics.SingleBend.determine_2layer_boundary(
+                        kc1, self.current_depth, z_crit, self.B,
+                        w_init=w_init, s0=0, ds=self.ds,
+                        R_init=R_init, needle_rotations=current_rotations,
+                        continuous=self.continuous_integration )
 
                 # determine k0 and k0prime
-                k0, k0prime = intrinsics.SingleBend.k0_2layer( s, kc1, kc2, self.current_depth, s_crit,
-                                                               return_callable=self.continuous_integration )
+                k0, k0prime = intrinsics.SingleBend.k0_2layer(
+                        s, kc1, kc2, self.current_depth, s_crit,
+                        return_callable=self.continuous_integration )
                 Rz = geometry.rotz( np.pi )
                 R_init = R_init @ Rz  # rotate the needle 180 degrees about its axis
 
@@ -196,12 +208,14 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
 
                 # else
 
-                kc, w_init, _ = self.optimizer.doublebend_singlelayer_k0( kc_i, w_init_i, self.current_curvatures.T,
-                                                                          self.current_depth, s_crit, R_init=R_init )
+                kc, w_init, _ = self.optimizer.doublebend_singlelayer_k0(
+                        kc_i, w_init_i, self.current_curvatures.T,
+                        self.current_depth, s_crit, R_init=R_init )
                 self.current_kc = [ kc ]
                 self.current_winit = w_init
-                k0, k0prime = intrinsics.DoubleBend.k0_1layer( s, kc, self.current_depth, s_crit=s_crit,
-                                                               return_callable=self.continuous_integration )
+                k0, k0prime = intrinsics.DoubleBend.k0_1layer(
+                        s, kc, self.current_depth, s_crit=s_crit,
+                        return_callable=self.continuous_integration )
 
             # elif: double-bend single-layer
 
@@ -217,15 +231,19 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
                     w0 = lambda s: np.append( k0( s ), [ 0, 0 ] )
                     w0prime = lambda s: np.append( k0prime( s ), [ 0, 0 ] )
 
-                    pmat, Rmat, _ = numerical.integrateEP_w0_ode( w_init, w0, w0prime, self.B, s, s0=0, ds=self.ds,
-                                                                  R_init=R_init, arg_check=False )
+                    pmat, Rmat, _ = numerical.integrateEP_w0_ode(
+                            w_init, w0, w0prime, self.B, s, s0=0, ds=self.ds,
+                            needle_rotations=self.current_rotations,
+                            R_init=R_init, arg_check=False )
                 # if
                 else:
                     w0 = np.hstack( (k0.reshape( -1, 1 ), np.zeros( (k0.size, 2) )) )
                     w0prime = np.hstack( (k0prime.reshape( -1, 1 ), np.zeros( (k0prime.size, 2) )) )
 
-                    pmat, Rmat, _ = numerical.integrateEP_w0( w_init, w0, w0prime, self.B, s0=0, ds=self.ds,
-                                                              R_init=R_init, arg_check=False )
+                    pmat, Rmat, _ = numerical.integrateEP_w0(
+                            w_init, w0, w0prime, self.B, s0=0, ds=self.ds,
+                            needle_rotations=self.current_rotations, R_init=R_init,
+                            arg_check=False )
                 # if
             # if
 
@@ -243,6 +261,32 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
 
     # load_json
 
+    def set_rotation( self, L: float, rot_rads: float ):
+        """ Set the needle rotation at the specified length
+
+            :param L: float of needle depth when the needle the rotation was performed
+            :param rot_rads: float of the amount of rotation/orientation of the needle
+
+            :returns: boolean of whether operation was successful or not
+
+        """
+        # check for valid length
+        if (L < 0) or L > self.length:
+            return False
+
+        # find closest length
+        lengths = np.arange( 0, self.length + self.ds, self.ds )
+        L_closest_idx = np.argmin( np.abs( lengths - L ) ).item()
+
+        # update the rotation # TODO: is this correct?
+        # for i in range(L_closest_idx, len(self.current_rotations)): # update after points
+        for i in range(L_closest_idx): # update before points
+            self.current_rotations[i] = rot_rads
+
+        return True
+
+    # set_rotation
+
     def update_curvatures( self, processed: bool = False, temp_comp: bool = True ):
         """ Update the current curvatures
 
@@ -259,7 +303,8 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
                 self.current_curvatures = self.curvatures_processed( self.current_wavelengths )
 
             else:
-                self.current_curvatures = self.curvatures_raw( self.current_wavelengths, temp_comp=temp_comp )
+                self.current_curvatures = self.curvatures_raw(
+                        self.current_wavelengths, temp_comp=temp_comp )
 
         # if
         else:
@@ -325,8 +370,9 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
 
     # update_shapetype
 
-    def update_wavelengths( self, wavelengths: np.ndarray, reference: bool = False, temp_comp: bool = True,
-                            processed: bool = False ):
+    def update_wavelengths(
+            self, wavelengths: np.ndarray, reference: bool = False, temp_comp: bool = True,
+            processed: bool = False ):
         """ Update the current signals and curvatures with the updated value. This will also determine the
             curvatures if the current reference signals are set
 

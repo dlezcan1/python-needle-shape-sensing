@@ -21,7 +21,9 @@ from .sensorized_needles import FBGNeedle
 
 
 class NeedleParamOptimizations:
-    def __init__( self, fbgneedle: FBGNeedle, ds: float = 0.5, optim_options: dict = None, continuous: bool = True ):
+    def __init__(
+            self, fbgneedle: FBGNeedle, ds: float = 0.5, optim_options: dict = None,
+            continuous: bool = True ):
         assert (ds > 0)
         self.fbg_needle = fbgneedle
 
@@ -32,10 +34,11 @@ class NeedleParamOptimizations:
         self.ds = ds
 
         # optimizer options
-        default_options = { 'w_init_bounds': [ (-0.01, 0.01) ] * 3,
-                            'kc_bounds'    : [ (0, 0.01) ],
-                            'tol'          : 1e-8
-                            }
+        default_options = {
+                'w_init_bounds': [ (-0.01, 0.01) ] * 3,
+                'kc_bounds'    : [ (0, 0.01) ],
+                'tol'          : 1e-8
+                }
         self.options = default_options
         self.options.update( optim_options if optim_options is not None else { } )
 
@@ -51,11 +54,13 @@ class NeedleParamOptimizations:
         """
         assert (L > 0)
         # check for inserted into tissue
-        s_data_ins, inserted_sensors = self.fbg_needle.calculate_length_measured( L, tip=True, valid=True )
+        s_data_ins, inserted_sensors = self.fbg_needle.calculate_length_measured(
+                L, tip=True, valid=True )
         data_ins = data[ inserted_sensors ]
         if len( self.fbg_needle.weights ) > 0:
-            weights = np.array( [ self.fbg_needle.weights[ key ] for (key, inserted) in
-                                  zip( self.fbg_needle.weights.keys(), inserted_sensors ) if inserted ] )
+            weights = np.array(
+                    [ self.fbg_needle.weights[ key ] for (key, inserted) in
+                      zip( self.fbg_needle.weights.keys(), inserted_sensors ) if inserted ] )
         # if
         else:
             weights = np.ones_like( s_data_ins )
@@ -73,8 +78,9 @@ class NeedleParamOptimizations:
 
     # constant_curvature
 
-    def singlebend_singlelayer_k0( self, k_c_0: float, w_init_0: np.ndarray, data: np.ndarray, L: float,
-                                   R_init: np.ndarray = np.eye( 3 ), **kwargs ):
+    def singlebend_singlelayer_k0(
+            self, k_c_0: float, w_init_0: np.ndarray, data: np.ndarray, L: float,
+            R_init: np.ndarray = np.eye( 3 ), **kwargs ):
         """
             :param k_c_0: initial intrinsic curvature
             :param w_init_0: initial w_init
@@ -89,11 +95,13 @@ class NeedleParamOptimizations:
         # argument checking
         assert (L > 0)
         # check for inserted into tissue
-        s_data_ins, inserted_sensors = self.fbg_needle.calculate_length_measured( L, tip=True, valid=True )
+        s_data_ins, inserted_sensors = self.fbg_needle.calculate_length_measured(
+                L, tip=True, valid=True )
         data_ins = data[ inserted_sensors ]
         if len( self.fbg_needle.weights ) > 0:
-            weights = np.array( [ self.fbg_needle.weights[ key ] for (key, inserted) in
-                                  zip( self.fbg_needle.weights.keys(), inserted_sensors ) if inserted ] )
+            weights = np.array(
+                    [ self.fbg_needle.weights[ key ] for (key, inserted) in
+                      zip( self.fbg_needle.weights.keys(), inserted_sensors ) if inserted ] )
         # if
         else:
             weights = None
@@ -103,19 +111,22 @@ class NeedleParamOptimizations:
         # perform the optimization
         eta_0 = np.append( [ k_c_0 ], w_init_0 )
         Binv = kwargs.get( 'Binv', self.__needle_Binv )
-        cost_kwargs = { 'L'      : L,
-                        'Binv'   : Binv,
-                        'R_init' : R_init,
-                        'weights': weights
-                        }
-        c_0 = cost_functions.singlebend_singlelayer_cost( eta_0, data_ins, s_data_ins, self.ds, self.__needle_B,
-                                                          scalef=1, arg_check=True, **cost_kwargs )
+        cost_kwargs = {
+                'L'      : L,
+                'Binv'   : Binv,
+                'R_init' : R_init,
+                'weights': weights
+                }
+        c_0 = cost_functions.singlebend_singlelayer_cost(
+                eta_0, data_ins, s_data_ins, self.ds, self.__needle_B,
+                scalef=1, arg_check=True, **cost_kwargs )
         c_f = 1 / c_0 if c_0 > 0 else 1
-        cost_fn = lambda eta: cost_functions.singlebend_singlelayer_cost( eta, data_ins, s_data_ins, self.ds,
-                                                                          self.fbg_needle.B,
-                                                                          scalef=c_f, arg_check=False,
-                                                                          continuous=self.continuous,
-                                                                          **cost_kwargs )
+        cost_fn = lambda eta: cost_functions.singlebend_singlelayer_cost(
+                eta, data_ins, s_data_ins, self.ds,
+                self.fbg_needle.B,
+                scalef=c_f, arg_check=False,
+                continuous=self.continuous,
+                **cost_kwargs )
         res = self.__optimize( cost_fn, eta_0, **kwargs )
         kc, w_init = res.x[ 0 ], res.x[ 1:4 ]
 
@@ -123,9 +134,10 @@ class NeedleParamOptimizations:
 
     # singlebend_singlelayer_k0
 
-    def singlebend_doublelayer_k0( self, kc1_0: float, kc2_0: float, w_init_0: np.ndarray, data: np.ndarray, L: float,
-                                   s_crit: float = None, z_crit: float = None, R_init: np.ndarray = np.eye( 3 ),
-                                   **kwargs ):
+    def singlebend_doublelayer_k0(
+            self, kc1_0: float, kc2_0: float, w_init_0: np.ndarray, data: np.ndarray, L: float,
+            s_crit: float = None, z_crit: float = None, R_init: np.ndarray = np.eye( 3 ),
+            **kwargs ):
         """
             :param kc1_0: initial intrinsic curvature for layer 1
             :param kc2_0: initial intrinsic curvature for layer 2
@@ -142,11 +154,13 @@ class NeedleParamOptimizations:
         """
         assert (L >= z_crit > 0)
         # check for inserted into tissue
-        s_data_ins, inserted_sensors = self.fbg_needle.calculate_length_measured( L, tip=True, valid=True )
+        s_data_ins, inserted_sensors = self.fbg_needle.calculate_length_measured(
+                L, tip=True, valid=True )
         data_ins = data[ inserted_sensors ]
         if len( self.fbg_needle.weights ) > 0:
-            weights = np.array( [ self.fbg_needle.weights[ key ] for (key, inserted) in
-                                  zip( self.fbg_needle.weights.keys(), inserted_sensors ) if inserted ] )
+            weights = np.array(
+                    [ self.fbg_needle.weights[ key ] for (key, inserted) in
+                      zip( self.fbg_needle.weights.keys(), inserted_sensors ) if inserted ] )
         # if
         else:
             weights = None
@@ -156,21 +170,24 @@ class NeedleParamOptimizations:
         # perform the optimization
         eta_0 = np.append( [ kc1_0, kc2_0 ], w_init_0 )
         Binv = kwargs.get( 'Binv', self.__needle_Binv )
-        cost_kwargs = { 'L'      : L,
-                        's_crit' : s_crit,
-                        'z_crit' : z_crit,
-                        'Binv'   : Binv,
-                        'R_init' : R_init,
-                        'weights': weights
-                        }
-        c_0 = cost_functions.singlebend_doublelayer_cost( eta_0, data_ins, s_data_ins, self.ds, self.__needle_B,
-                                                          scalef=1, arg_check=True, **cost_kwargs )
+        cost_kwargs = {
+                'L'      : L,
+                's_crit' : s_crit,
+                'z_crit' : z_crit,
+                'Binv'   : Binv,
+                'R_init' : R_init,
+                'weights': weights
+                }
+        c_0 = cost_functions.singlebend_doublelayer_cost(
+                eta_0, data_ins, s_data_ins, self.ds, self.__needle_B,
+                scalef=1, arg_check=True, **cost_kwargs )
         c_f = 1 / c_0 if c_0 > 0 else 1
-        cost_fn = lambda eta: cost_functions.singlebend_doublelayer_cost( eta, data_ins, s_data_ins, self.ds,
-                                                                          self.fbg_needle.B,
-                                                                          scalef=c_f, arg_check=False,
-                                                                          continuous=self.continuous,
-                                                                          **cost_kwargs )
+        cost_fn = lambda eta: cost_functions.singlebend_doublelayer_cost(
+                eta, data_ins, s_data_ins, self.ds,
+                self.fbg_needle.B,
+                scalef=c_f, arg_check=False,
+                continuous=self.continuous,
+                **cost_kwargs )
         res = self.__optimize( cost_fn, eta_0, **kwargs )
         kc1, kc2, w_init = res.x[ 0 ], res.x[ 1 ], res.x[ 2:5 ]
 
@@ -178,8 +195,9 @@ class NeedleParamOptimizations:
 
     # singlebend_doublelayer_k0
 
-    def doublebend_singlelayer_k0( self, kc_0: float, w_init_0: np.ndarray, data: np.ndarray, L: float,
-                                   s_crit: float, R_init: np.ndarray = np.eye( 3 ), **kwargs ):
+    def doublebend_singlelayer_k0(
+            self, kc_0: float, w_init_0: np.ndarray, data: np.ndarray, L: float,
+            s_crit: float, R_init: np.ndarray = np.eye( 3 ), **kwargs ):
         """
             :param kc_0: initial intrinsic curvature for layer 1
             :param w_init_0: initial w_init
@@ -194,11 +212,13 @@ class NeedleParamOptimizations:
         """
         assert (L >= s_crit > 0)
         # check for inserted into tissue
-        s_data_ins, inserted_sensors = self.fbg_needle.calculate_length_measured( L, tip=True, valid=True )
+        s_data_ins, inserted_sensors = self.fbg_needle.calculate_length_measured(
+                L, tip=True, valid=True )
         data_ins = data[ inserted_sensors ]
         if len( self.fbg_needle.weights ) > 0:
-            weights = np.array( [ self.fbg_needle.weights[ key ] for (key, inserted) in
-                                  zip( self.fbg_needle.weights.keys(), inserted_sensors ) if inserted ] )
+            weights = np.array(
+                    [ self.fbg_needle.weights[ key ] for (key, inserted) in
+                      zip( self.fbg_needle.weights.keys(), inserted_sensors ) if inserted ] )
         # if
         else:
             weights = None
@@ -208,20 +228,23 @@ class NeedleParamOptimizations:
         # perform the optimization
         eta_0 = np.append( [ kc_0 ], w_init_0 )
         Binv = kwargs.get( 'Binv', self.__needle_Binv )
-        cost_kwargs = { 'L'      : L,
-                        'Binv'   : Binv,
-                        'R_init' : R_init,
-                        'weights': weights
-                        }
-        c_0 = cost_functions.doublebend_singlelayer_cost( eta_0, data_ins, s_data_ins, self.ds, s_crit,
-                                                          self.fbg_needle.B,
-                                                          scalef=1, arg_check=True, **cost_kwargs )
+        cost_kwargs = {
+                'L'      : L,
+                'Binv'   : Binv,
+                'R_init' : R_init,
+                'weights': weights
+                }
+        c_0 = cost_functions.doublebend_singlelayer_cost(
+                eta_0, data_ins, s_data_ins, self.ds, s_crit,
+                self.fbg_needle.B,
+                scalef=1, arg_check=True, **cost_kwargs )
         c_f = 1 / c_0 if c_0 > 0 else 1
-        cost_fn = lambda eta: cost_functions.doublebend_singlelayer_cost( eta, data_ins, s_data_ins, self.ds,
-                                                                          s_crit, self.__needle_B,
-                                                                          scalef=c_f, arg_check=False,
-                                                                          continuous=self.continuous,
-                                                                          **cost_kwargs )
+        cost_fn = lambda eta: cost_functions.doublebend_singlelayer_cost(
+                eta, data_ins, s_data_ins, self.ds,
+                s_crit, self.__needle_B,
+                scalef=c_f, arg_check=False,
+                continuous=self.continuous,
+                **cost_kwargs )
         res = self.__optimize( cost_fn, eta_0, **kwargs )
 
         kc, w_init = res.x[ 0 ], res.x[ 1:4 ]
@@ -237,16 +260,18 @@ class NeedleParamOptimizations:
 
         # filter specific bounds and add bounds if not already specified
         exclude_keys = [ 'w_init_bounds', 'kc_bounds' ]
-        optim_options = dict( filter( lambda x: x[ 0 ] not in exclude_keys, optim_options.items() ) )
+        optim_options = dict(
+                filter( lambda x: x[ 0 ] not in exclude_keys, optim_options.items() ) )
         if optim_options.get( 'bounds' ) is None:
-            bounds = self.options[ 'kc_bounds' ] * (eta_0.size - 3) + self.options[ 'w_init_bounds' ]
+            bounds = self.options[ 'kc_bounds' ] * (eta_0.size - 3) + self.options[
+                'w_init_bounds' ]
             optim_options[ 'bounds' ] = bounds
 
         # bounds
 
         # perform optimization
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", scipy.integrate.odepack.ODEintWarning)
+            warnings.simplefilter( "ignore", scipy.integrate.odepack.ODEintWarning )
             result = spoptim.minimize( cost_fn, eta_0, **optim_options )
 
         # with
@@ -307,9 +332,11 @@ def differential_EPeq( wv: np.ndarray, s: float, w0, w0prime, B: np.ndarray, Bin
 
 # differential_EPeq
 
-def integrateEP_w0( w_init: np.ndarray, w0: np.ndarray, w0prime: np.ndarray, B: np.ndarray,
-                    s: np.ndarray = None, s0: float = 0, ds: float = None, R_init: np.ndarray = np.eye( 3 ),
-                    Binv: np.ndarray = None, arg_check: bool = True, wv_only: bool = False ) -> (
+def integrateEP_w0(
+        w_init: np.ndarray, w0: np.ndarray, w0prime: np.ndarray, B: np.ndarray,
+        s: np.ndarray = None, s0: float = 0, ds: float = None, R_init: np.ndarray = np.eye( 3 ),
+        Binv: np.ndarray = None, needle_rotations: list = None, arg_check: bool = True,
+        wv_only: bool = False ) -> (
         np.ndarray, np.ndarray, np.ndarray):
     """ integrate Euler-Poincare equation for needle shape sensing for given intrinsic angular deformation
 
@@ -326,6 +353,7 @@ def integrateEP_w0( w_init: np.ndarray, w0: np.ndarray, w0prime: np.ndarray, B: 
             ds: (Default = None) the arclength increments desired
             Binv: (Default = None) inv(B) Can be provided for numerical efficiency
             R_init: (Default = 3x3 identity) SO3 matrix for initial rotation angle
+            needle_rotations: (Default = None) list of rotations in degrees of the needle rotations
             arg_check: (Default = False) whether to check if the arguments are valid
             wv_only: (Default = False) whether to only integrate wv or not.
 
@@ -373,6 +401,21 @@ def integrateEP_w0( w_init: np.ndarray, w0: np.ndarray, w0prime: np.ndarray, B: 
     elif arg_check:
         assert (Binv.shape == (3, 3))
 
+    # needle rotation axis
+    if needle_rotations is None:
+        needle_rotations = [ 0 ] * len( s )
+
+    else:
+        needle_rotations = needle_rotations[ s >= s0 ]
+
+    # update w0 and w0prime
+    for idx in range( N ):
+        Rz = geometry.rotz( needle_rotations[ idx ] )
+        w0[ idx ] = Rz @ w0[ idx ]
+        w0prime[ idx ] = Rz @ w0prime[ idx ]
+
+    # for
+
     # initialize the return matrices
     wv = np.zeros( (N, 3) )
 
@@ -382,12 +425,15 @@ def integrateEP_w0( w_init: np.ndarray, w0: np.ndarray, w0prime: np.ndarray, B: 
     # perform integration to calculate angular deformation vector
     for idx in range( 1, N ):
         ds = s[ idx ] - s[ idx - 1 ]  # calculate ds
+        Rz = geometry.rotz( needle_rotations[ idx ] )
         if idx == 1:
-            wv[ idx ] = w_init + ds * (w0prime[ 0 ] - Binv @ np.cross( wv[ 0 ], B @ (w_init - w0[ 0 ]) ))
+            wv[ idx ] = w_init + ds * (
+                    w0prime[ 0 ] - Binv @ np.cross( wv[ 0 ], B @ (w_init - w0[ 0 ]) ))
 
         else:
             wv[ idx ] = wv[ idx - 2 ] + 2 * ds * (
-                    w0prime[ idx - 1 ] - Binv @ np.cross( wv[ idx - 1 ], B @ (wv[ idx - 1 ] - w0[ idx - 1 ]) ))
+                    w0prime[ idx - 1 ] - Binv @ np.cross(
+                    wv[ idx - 1 ], B @ (wv[ idx - 1 ] - w0[ idx - 1 ]) ))
 
     # for
 
@@ -402,10 +448,13 @@ def integrateEP_w0( w_init: np.ndarray, w0: np.ndarray, w0prime: np.ndarray, B: 
 
 # integrateEP_w0
 
-def integrateEP_w0_ode( w_init: np.ndarray, w0: Union[ Callable, np.ndarray ], w0prime: Union[ Callable, np.ndarray ],
-                        B: np.ndarray, s: np.ndarray, s0: float = 0, ds: float = None,
-                        R_init: np.ndarray = np.eye( 3 ), Binv: np.ndarray = None, arg_check: bool = True,
-                        wv_only: bool = False ) -> (np.ndarray, np.ndarray, np.ndarray):
+def integrateEP_w0_ode(
+        w_init: np.ndarray, w0: Union[ Callable, np.ndarray ],
+        w0prime: Union[ Callable, np.ndarray ],
+        B: np.ndarray, s: np.ndarray, s0: float = 0, ds: float = None,
+        R_init: np.ndarray = np.eye( 3 ), Binv: np.ndarray = None, arg_check: bool = True,
+        needle_rotations: list = None, wv_only: bool = False ) -> (
+        np.ndarray, np.ndarray, np.ndarray):
     """ integrate Euler-Poincare equation for needle shape sensing for given intrinsic angular deformation
         using scipy.integrate
 
@@ -422,6 +471,7 @@ def integrateEP_w0_ode( w_init: np.ndarray, w0: Union[ Callable, np.ndarray ], w
             Binv: (Default = None) inv(B) Can be provided for numerical efficiency
             R_init: (Default = 3x3 identity) SO3 matrix for initial rotation angle
             arg_check: (Default = False) whether to check if the arguments are valid
+            needle_rotations: (Default = None) a list of needle axis rotations
             wv_only: (Default = False) whether to only integrate wv or not.
 
         Return:
@@ -461,9 +511,22 @@ def integrateEP_w0_ode( w_init: np.ndarray, w0: Union[ Callable, np.ndarray ], w
         w0prime_fn = interpolate.interp1d( s, w0prime.T, fill_value='extrapolate' )
         # w0prime_fn = lambda t: jit_linear_interp1d( t, w0prime, s )
 
+    # use needle rotation interpolation
+    if needle_rotations is None:
+        needle_rotation_fn = lambda s: 0  # default nullify implementation
+
+    elif callable( needle_rotations ):
+        needle_rotation_fn = needle_rotations
+
+    else:
+        needle_rotation_fn = interpolate.interp1d( s, needle_rotations, fill_value='extrapolate' )
+
+    w0_fn = lambda s: geometry.rotz( needle_rotation_fn( s ) ) @ w0_fn( s )
+    w0prime_fn = lambda s: geometry.rotz( needle_rotation_fn( s ) ) @ w0prime_fn( s )
+
     # perform integration
     ode_EP = lambda s, wv: differential_EPeq( wv, s, w0_fn, w0prime_fn, B, Binv )
-    wv = odeint( ode_EP, w_init, s, full_output=False, hmin=ds/2, h0=ds/2, tfirst=True )
+    wv = odeint( ode_EP, w_init, s, full_output=False, hmin=ds / 2, h0=ds / 2, tfirst=True )
     # wv = solve_ivp( ode_EP, (s0, s.max()), w_init, method='RK45', t_eval=s,
     #                 first_step=ds )  # 'RK23' for speed (all slower than odeint)
 
@@ -478,7 +541,9 @@ def integrateEP_w0_ode( w_init: np.ndarray, w0: Union[ Callable, np.ndarray ], w
 
 # integrateEP_w0_ode
 
-def integratePose_wv( wv, s: np.ndarray = None, s0: float = 0, ds: float = None, R_init: np.ndarray = np.eye( 3 ) ):
+def integratePose_wv(
+        wv, s: np.ndarray = None, s0: float = 0, ds: float = None,
+        R_init: np.ndarray = np.eye( 3 ) ):
     """ Integrate angular deformation to get the pose of the needle along it's arclengths
 
         :param wv: N x 3 angular deformation vector
@@ -487,6 +552,9 @@ def integratePose_wv( wv, s: np.ndarray = None, s0: float = 0, ds: float = None,
         :param s0: (Default = 0) the initial length to start off with
         :param R_init: (Default = numpy.eye(3)) Rotation matrix of the inital pose
 
+        :returns: pmat, Rmat
+            - pmat: N x 3 position for the needle shape points in-tissue
+            -Rmat: N x 3 x 3 SO(3) rotation matrices for
     """
     # set-up the containers
     N = wv.shape[ 0 ]
@@ -523,7 +591,7 @@ def integratePose_wv( wv, s: np.ndarray = None, s0: float = 0, ds: float = None,
 
 # integratePose_wv
 
-def interpolate_curve_s(points: np.ndarray, s_interp: np.ndarray, axis=0):
+def interpolate_curve_s( points: np.ndarray, s_interp: np.ndarray, axis=0 ):
     """ Interpolate a curve based on its arclength via linear interpolation
 
         :param points: the points to interpolate by (N x M array)
@@ -535,12 +603,13 @@ def interpolate_curve_s(points: np.ndarray, s_interp: np.ndarray, axis=0):
 
     """
     # get the arclengths of the curve
-    L, s = geometry.arclength(points, axis=axis)
+    L, s = geometry.arclength( points, axis=axis )
 
-    s_interp = s_interp[(s_interp <= L) & (s_interp >= s.min())] # cut-off extrapolated curve values
+    s_interp = s_interp[
+        (s_interp <= L) & (s_interp >= s.min()) ]  # cut-off extrapolated curve values
 
     # begin interpolation
-    points_interp = interpolate.interp1d(s, points, axis=axis)(s_interp)
+    points_interp = interpolate.interp1d( s, points, axis=axis )( s_interp )
 
     return points_interp, s_interp
 
