@@ -7,7 +7,7 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
     def __init__(
             self, length: float, serial_number: str, num_channels: int, sensor_location=None,
             calibration_mats=None, weights=None, ds: float = 0.5, current_depth: float = 0,
-            optim_options: dict = None, cts_integration: bool = True, **kwargs ):
+            optim_options: dict = None, cts_integration: bool = False, **kwargs ):
         super().__init__(
                 length, serial_number, num_channels, sensor_location=sensor_location,
                 calibration_mats=calibration_mats, weights=weights, **kwargs )
