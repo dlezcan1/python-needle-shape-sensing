@@ -24,7 +24,7 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
                 self, ds=ds, optim_options=optim_options,
                 continuous=cts_integration )
         self.current_kc = [ 0 ]
-        self.current_rotations = [ 0 ] * int(self.length // self.ds + 1)  # radians
+        self.current_rotations = None # [ 0 ] * int(self.length // self.ds + 1)  # radians
         self.current_winit = np.zeros( 3 )
 
     # __init__
@@ -107,7 +107,7 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
         # kwargs get
         R_init = kwargs.get( 'R_init', np.eye( 3 ) )
         s = np.arange( 0, self.current_depth + self.ds, self.ds )
-        current_rotations = self.current_rotations[ -int(self.current_depth // self.ds - 1): ]
+        current_rotations = None if self.current_rotations is None else self.current_rotations[ -int(self.current_depth // self.ds - 1): ]
 
         # initial checks
         pmat, Rmat = None, None

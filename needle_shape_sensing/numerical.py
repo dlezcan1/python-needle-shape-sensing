@@ -11,7 +11,7 @@ from typing import Union, Callable
 import numpy as np
 import scipy.integrate.odepack
 import scipy.optimize as spoptim
-from scipy.integrate import odeint
+from scipy.integrate import odeint, solve_ivp
 from scipy import interpolate
 from spatialmath.base import exp2r
 from numba import jit
@@ -259,7 +259,7 @@ class NeedleParamOptimizations:
         optim_options.update( kwargs )
 
         # filter specific bounds and add bounds if not already specified
-        exclude_keys = [ 'w_init_bounds', 'kc_bounds' ]
+        exclude_keys = [ 'w_init_bounds', 'kc_bounds', 'needle_rotations' ]
         optim_options = dict(
                 filter( lambda x: x[ 0 ] not in exclude_keys, optim_options.items() ) )
         if optim_options.get( 'bounds' ) is None:
@@ -453,7 +453,7 @@ def integrateEP_w0_ode(
         w0prime: Union[ Callable, np.ndarray ],
         B: np.ndarray, s: np.ndarray, s0: float = 0, ds: float = None,
         R_init: np.ndarray = np.eye( 3 ), Binv: np.ndarray = None, arg_check: bool = True,
-        needle_rotations: list = None, wv_only: bool = False ) -> (
+        needle_rotations: list = None, wv_only: bool = False, integration_method = 'RK45' ) -> (
         np.ndarray, np.ndarray, np.ndarray):
     """ integrate Euler-Poincare equation for needle shape sensing for given intrinsic angular deformation
         using scipy.integrate
@@ -473,6 +473,10 @@ def integrateEP_w0_ode(
             arg_check: (Default = False) whether to check if the arguments are valid
             needle_rotations: (Default = None) a list of needle axis rotations
             wv_only: (Default = False) whether to only integrate wv or not.
+            integration_method: (Default = 'RK45') type of integration ('odeint', 'RK23', 'RK45')
+                'odeint': speed but unstable
+                'RK23':   slower than 'odeint', faster than 'RK45', more stable than 'odeint'
+                'RK45':   slowest, but more stable than the rest.
 
         Return:
             (N x 3 needle shape, N x 3 x 3 SO3 matrices of orientations), N x 3 angular deformation)
@@ -521,14 +525,21 @@ def integrateEP_w0_ode(
     else:
         needle_rotation_fn = interpolate.interp1d( s, needle_rotations, fill_value='extrapolate' )
 
-    w0_fn = lambda s: geometry.rotz( needle_rotation_fn( s ) ) @ w0_fn( s )
-    w0prime_fn = lambda s: geometry.rotz( needle_rotation_fn( s ) ) @ w0prime_fn( s )
+    w0_rot_fn = lambda s: geometry.rotz( needle_rotation_fn( s ) ) @ w0_fn( s )
+    w0prime_rot_fn = lambda s: geometry.rotz( needle_rotation_fn( s ) ) @ w0prime_fn( s )
 
     # perform integration
-    ode_EP = lambda s, wv: differential_EPeq( wv, s, w0_fn, w0prime_fn, B, Binv )
-    wv = odeint( ode_EP, w_init, s, full_output=False, hmin=ds / 2, h0=ds / 2, tfirst=True )
-    # wv = solve_ivp( ode_EP, (s0, s.max()), w_init, method='RK45', t_eval=s,
-    #                 first_step=ds )  # 'RK23' for speed (all slower than odeint)
+    ode_EP = lambda s, wv: differential_EPeq( wv, s, w0_rot_fn, w0prime_rot_fn, B, Binv )
+    if integration_method.lower() == 'odeint':
+        wv = odeint( ode_EP, w_init, s, full_output=False, hmin=ds / 2, h0=ds / 2, tfirst=True )
+
+    else:
+        wv_res = solve_ivp( ode_EP, (s0, s.max()), w_init, method=integration_method, t_eval=s,
+                    first_step=ds )  # 'RK23' for speed (all slower than odeint) 'RK45' for accuracy
+        wv = wv_res.y.T
+
+    # else
+
 
     # integrate angular deviation vector in order to get the pose
     if wv_only:
