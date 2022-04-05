@@ -523,7 +523,7 @@ def integrateEP_w0_ode(
         needle_rotation_fn = needle_rotations
 
     else:
-        needle_rotation_fn = interpolate.interp1d( s, needle_rotations, fill_value='extrapolate' )
+        needle_rotation_fn = interpolate.interp1d( s, needle_rotations, fill_value=0 )
 
     w0_rot_fn = lambda s: geometry.rotz( needle_rotation_fn( s ) ) @ w0_fn( s )
     w0prime_rot_fn = lambda s: geometry.rotz( needle_rotation_fn( s ) ) @ w0prime_fn( s )

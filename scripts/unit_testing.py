@@ -5,37 +5,75 @@ import numpy as np
 from needle_shape_sensing.shape_sensing import ShapeSensingFBGNeedle
 from needle_shape_sensing.intrinsics import SHAPETYPE, SingleBend
 from needle_shape_sensing.cost_functions import singlebend_singlelayer_cost
-from needle_shape_sensing.numerical import integrateEP_w0_ode, integratePose_wv
+from needle_shape_sensing.numerical import integrateEP_w0, integrateEP_w0_ode, integratePose_wv
 
 avgtimeit = lambda f, number: timeit( f, number=int( number ) ) / int( number )
 
 
-def integration_stability_test(
-        ss_fbgneedle, methods: list, kc_l: list, w_init_l: list, N_trials: int = 1e3 ):
+def integration_stability_test( ss_fbgneedle, methods: list, kc_l: list, w_init_l: list ):
+    valid_methods = ["odeint", "RK23", "RK45", "LSODA"]
+
     # parameter updates
     B = ss_fbgneedle.B
     Binv = np.linalg.inv( B )
     ds = 0.5
     s = np.arange( 0, 130 + ds, ds )
 
-    # integration function
+    # integration functions
     integration_wv_fn = lambda int_method, w0, w0prime, w_init: integrateEP_w0_ode(
             w_init, w0, w0prime, B=B, s=s, ds=ds, Binv=Binv, wv_only=True,
-            integration_method=int_method )
+            integration_method=int_method )[2]
+    integration_wv_fn_gt = lambda w0, w0prime, w_init: integrateEP_w0(
+            w_init, w0, w0prime, B=B, s=s, ds=ds, Binv=Binv, wv_only=True )[2]
     integration_pos_fn = lambda wv: integratePose_wv( wv, s, s.min(), ds )[ 0 ]  # pmat
 
+    # iterate through the methods
     for method in methods:
+        if method not in valid_methods:
+            continue
+
         for kc, w_init in zip( kc_l, w_init_l ):
+            k0v, k0primev = SingleBend.k0_1layer( s, kc, s.max(), return_callable=False )
             k0, k0prime = SingleBend.k0_1layer( s, kc, s.max(), return_callable=True )
             w0 = lambda s: np.append( k0( s ), [ 0, 0 ] )
             w0prime = lambda s: np.append( k0prime( s ), [ 0, 0 ] )
+            w0v = np.hstack( (k0v.reshape( -1, 1 ), np.zeros( ( len( k0v ), 2) )) )
+            w0primev = np.hstack( (k0primev.reshape( -1, 1 ), np.zeros( ( len( k0primev ), 2) )) )
 
-            # TODO: test maximum curvature for wv
+            # get ground truth
+            wv_gt = integration_wv_fn_gt( w0v, w0primev, w_init )
+            pmat_gt = integration_pos_fn( wv_gt )
 
-            # TODO: test tip location deflection
+            # perform continuous integration
+            wv_test = integration_wv_fn( method, w0, w0prime, w_init )
+            pmat_test = integration_pos_fn( wv_test )
 
-        # for
-    # for method
+            # perform error computations
+            # - test maximum curvature for wv
+            wv_gt_max = np.linalg.norm( wv_gt, ord=2, axis=1 ).max()
+            wv_test_max = np.linalg.norm( wv_test, ord=2, axis=1 ).max()
+
+            # - perform maximum curvature error
+            wv_err_max = np.linalg.norm( wv_gt - wv_test, ord=2, axis=1 ).max()
+
+            # - test tip location deflection
+            tip_defl_gt = np.linalg.norm( pmat_gt[ 0:2, -1 ], ord=2 )
+            tip_defl_test = np.linalg.norm( pmat_test[ 0:2, -1 ], ord=2 )
+
+            # - compute shape deviation between GT and test
+            pmat_err_max = np.linalg.norm( pmat_gt - pmat_test, ord=2, axis=1 ).max()
+
+            # summarize results
+            print( f"Method: {method} | kc: {kc} 1/mm | w_init: {w_init} 1/mm" )
+            print(
+                    f" Curvature: Max GT = {wv_gt_max:.4f} 1/mm | Max Test = {wv_test_max:.4f} 1/mm |"
+                    f" Max Error = {wv_err_max:.4f} 1/mm" )
+            print( f" Tip Deflection: GT = {tip_defl_gt:.4f} mm | Test = {tip_defl_test:.4f} mm" )
+            print( f" Maximum Shape error = {pmat_err_max:.4f} mm " )
+
+        # for: kc, w_init
+        print()
+    # for: method
 
 
 # integration_stability_tst
@@ -52,16 +90,28 @@ def integration_speed_test(
     integration_fn = lambda int_method, w0, w0prime, w_init: integrateEP_w0_ode(
             w_init, w0, w0prime, B=B, s=s, ds=ds, Binv=Binv, wv_only=True,
             integration_method=int_method )
+    integration_fn_gt = lambda w0, w0prime, w_init: integrateEP_w0(
+            w_init, w0, w0prime, B=B, s=s, ds=ds, Binv=Binv, wv_only=True )
 
     for method in methods:
         for kc, w_init in zip( kc_l, w_init_l ):
-            k0, k0prime = SingleBend.k0_1layer( s, kc, s.max(), return_callable=True )
-            w0 = lambda s: np.append( k0( s ), [ 0, 0 ] )
-            w0prime = lambda s: np.append( k0prime( s ), [ 0, 0 ] )
-            test_fn = lambda: integration_fn( method, w0, w0prime, w_init )
+            if method=="discrete":
+                k0, k0prime = SingleBend.k0_1layer( s, kc, s.max(), return_callable=False )
+                w0 = lambda s: np.append( k0( s ), [ 0, 0 ] )
+                w0 = np.hstack( (k0.reshape( -1, 1 ), np.zeros( (len( k0 ), 2) )) )
+                w0prime = np.hstack(
+                        (k0prime.reshape( -1, 1 ), np.zeros( (len( k0prime ), 2) )) )
+                test_fn = lambda: integration_fn_gt( w0, w0prime, w_init )
 
+            # if
+            else:
+                k0, k0prime = SingleBend.k0_1layer( s, kc, s.max(), return_callable=True )
+                w0 = lambda s: np.append( k0( s ), [ 0, 0 ] )
+                w0prime = lambda s: np.append( k0prime( s ), [ 0, 0 ] )
+                test_fn = lambda: integration_fn( method, w0, w0prime, w_init )
+
+            # else
             tavg_cost = avgtimeit( test_fn, N_trials )
-
             print(
                     f"Results for '{method:8s}' integration method for kc = {kc:4f},"
                     f" w_init = [ {w_init[ 0 ]:.4f}, {w_init[ 1 ]:.4f}, {w_init[ 2 ]:.4f} | "
@@ -111,20 +161,20 @@ def main():
     B = ss_fbgneedle.B
     Binv = np.linalg.inv( B )
 
-    cost_fn = lambda: singlebend_singlelayer_cost(
-            1e-3 * np.ones( 4 ), ss_fbgneedle.current_curvatures.T,
-            np.array( ss_fbgneedle.sensor_location_tip ),
-            ss_fbgneedle.ds, B, Binv=Binv,
-            L=ss_fbgneedle.current_depth, continuous=True )
-    timeavg_cost = avgtimeit( cost_fn, int( 1e3 ) )  # ~ 0.0009-0.0034 seconds/loop
-    print( f"Average time to evaluate cost function: {timeavg_cost} seconds/loop" )
-
-    # Prof. Kim integration
-    ds = 0.5
-    s = np.arange( 0, 130 + ds, ds )
-    k0, k0prime = SingleBend.k0_1layer( s, 1e-9, np.max( s ) )
-    w0 = np.hstack( (k0.reshape( -1, 1 ), np.zeros( (k0.size, 2) )) )
-    w0prime = np.hstack( (k0prime.reshape( -1, 1 ), np.zeros( (k0prime.size, 2) )) )
+    # cost_fn = lambda: singlebend_singlelayer_cost(
+    #         1e-3 * np.ones( 4 ), ss_fbgneedle.current_curvatures.T,
+    #         np.array( ss_fbgneedle.sensor_location_tip ),
+    #         ss_fbgneedle.ds, B, Binv=Binv,
+    #         L=ss_fbgneedle.current_depth, continuous=True )
+    # timeavg_cost = avgtimeit( cost_fn, int( 1e3 ) )  # ~ 0.0009-0.0034 seconds/loop
+    # print( f"Average time to evaluate cost function: {timeavg_cost} seconds/loop" )
+    #
+    # # Prof. Kim integration
+    # ds = 0.5
+    # s = np.arange( 0, 130 + ds, ds )
+    # k0, k0prime = SingleBend.k0_1layer( s, 1e-9, np.max( s ) )
+    # w0 = np.hstack( (k0.reshape( -1, 1 ), np.zeros( (k0.size, 2) )) )
+    # w0prime = np.hstack( (k0prime.reshape( -1, 1 ), np.zeros( (k0prime.size, 2) )) )
 
     # integration_fn = lambda: integrateEP_w0(np.zeros(3), w0, w0prime, B=B, ds=ds, Binv=Binv,wv_only=True)
     # N_loops = 1e3
@@ -133,11 +183,12 @@ def main():
     # print( f"Average time to evaluate integration function: {timeavg_integration/N_loops} seconds/loop" )
     # print()
 
-    # scipy integration - speed test
+    # scipy integration - tests
     kc = [ 1e-4, 1e-3 ]
     w_init = [ np.zeros( 3 ), 0.01 * np.ones( 3 ) ]
-    methods = [ 'odeint', 'RK23', 'RK45', 'LSODA' ]
+    methods = [ 'odeint', 'RK23', 'RK45', 'LSODA', "discrete" ]
     integration_speed_test( ss_fbgneedle, methods, kc, w_init )
+    integration_stability_test( ss_fbgneedle, methods, kc, w_init )
 
     return
 
@@ -183,7 +234,7 @@ def main():
     print( ss_fbgneedle.current_curvatures )
     ss_fbgneedle.optimizer.options.update(
             {
-                    'tol': 1e-4,
+                    'tol'    : 1e-4,
                     'options': { 'maxiter': 20 }  # about 0.14 s
                     } )
     ss_fn = lambda: ss_fbgneedle.get_needle_shape( 1e-4, np.zeros( 3 ) )
