@@ -30,7 +30,7 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
     # __init__
 
     def __repr__( self ):
-        return "Shape Sensing FBGNeedle:\n" + super().__repr__()
+        return "Shape Sensing " + super().__repr__()
 
     @property
     def current_shapetype( self ):

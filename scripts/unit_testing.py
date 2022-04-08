@@ -11,7 +11,7 @@ avgtimeit = lambda f, number: timeit( f, number=int( number ) ) / int( number )
 
 
 def integration_stability_test( ss_fbgneedle, methods: list, kc_l: list, w_init_l: list ):
-    valid_methods = ["odeint", "RK23", "RK45", "LSODA"]
+    valid_methods = [ "odeint", "RK23", "RK45", "LSODA" ]
 
     # parameter updates
     B = ss_fbgneedle.B
@@ -22,9 +22,9 @@ def integration_stability_test( ss_fbgneedle, methods: list, kc_l: list, w_init_
     # integration functions
     integration_wv_fn = lambda int_method, w0, w0prime, w_init: integrateEP_w0_ode(
             w_init, w0, w0prime, B=B, s=s, ds=ds, Binv=Binv, wv_only=True,
-            integration_method=int_method )[2]
+            integration_method=int_method )[ 2 ]
     integration_wv_fn_gt = lambda w0, w0prime, w_init: integrateEP_w0(
-            w_init, w0, w0prime, B=B, s=s, ds=ds, Binv=Binv, wv_only=True )[2]
+            w_init, w0, w0prime, B=B, s=s, ds=ds, Binv=Binv, wv_only=True )[ 2 ]
     integration_pos_fn = lambda wv: integratePose_wv( wv, s, s.min(), ds )[ 0 ]  # pmat
 
     # iterate through the methods
@@ -37,8 +37,8 @@ def integration_stability_test( ss_fbgneedle, methods: list, kc_l: list, w_init_
             k0, k0prime = SingleBend.k0_1layer( s, kc, s.max(), return_callable=True )
             w0 = lambda s: np.append( k0( s ), [ 0, 0 ] )
             w0prime = lambda s: np.append( k0prime( s ), [ 0, 0 ] )
-            w0v = np.hstack( (k0v.reshape( -1, 1 ), np.zeros( ( len( k0v ), 2) )) )
-            w0primev = np.hstack( (k0primev.reshape( -1, 1 ), np.zeros( ( len( k0primev ), 2) )) )
+            w0v = np.hstack( (k0v.reshape( -1, 1 ), np.zeros( (len( k0v ), 2) )) )
+            w0primev = np.hstack( (k0primev.reshape( -1, 1 ), np.zeros( (len( k0primev ), 2) )) )
 
             # get ground truth
             wv_gt = integration_wv_fn_gt( w0v, w0primev, w_init )
@@ -95,7 +95,7 @@ def integration_speed_test(
 
     for method in methods:
         for kc, w_init in zip( kc_l, w_init_l ):
-            if method=="discrete":
+            if method == "discrete":
                 k0, k0prime = SingleBend.k0_1layer( s, kc, s.max(), return_callable=False )
                 w0 = lambda s: np.append( k0( s ), [ 0, 0 ] )
                 w0 = np.hstack( (k0.reshape( -1, 1 ), np.zeros( (len( k0 ), 2) )) )
@@ -125,6 +125,43 @@ def integration_speed_test(
 
 # integration_speed_test
 
+def temperataure_compensation_test( ss_fbgneedle: ShapeSensingFBGNeedle ):
+    print("Testing Temperature compensation function")
+
+    wls_zeros1 = np.zeros( ss_fbgneedle.num_signals )
+    print( f"Testing Zero array of size: {wls_zeros1.shape}" )
+    print( "Result = " )
+    print( ss_fbgneedle.temperature_compensate( wls_zeros1 ) )
+    print()
+
+    wls_zeros2 = np.zeros( (1, ss_fbgneedle.num_signals) )
+    print( f"Testing Zero array of size: {wls_zeros2.shape}" )
+    print( "Result = " )
+    print( ss_fbgneedle.temperature_compensate( wls_zeros2 ) )
+    print()
+
+    wls_zeros3 = np.zeros( (6, ss_fbgneedle.num_signals) )
+    print( f"Testing Zero array of size: {wls_zeros3.shape}" )
+    print( "Result = " )
+    print( ss_fbgneedle.temperature_compensate( wls_zeros3 ) )
+    print()
+
+    wls = np.arange( ss_fbgneedle.num_activeAreas )[np.newaxis].\
+              repeat( ss_fbgneedle.num_channels, axis=0 ).ravel().astype(float)
+    print( f"Testing array = \n{wls}" )
+    print( "Result = " )
+    print( ss_fbgneedle.temperature_compensate( wls ) )
+    print()
+
+    wls_mat = wls[np.newaxis].repeat(5, axis=0)
+    print( f"Testing array = \n{wls_mat}" )
+    print("Result = ")
+    print( ss_fbgneedle.temperature_compensate( wls_mat ) )
+    print()
+
+# temperature_compensation_test
+
+
 def main():
     ss_fbgneedle = ShapeSensingFBGNeedle.load_json( 'needle_params.json' )
     ss_fbgneedle.continuous_integration = True
@@ -140,6 +177,7 @@ def main():
 
     ss_fbgneedle.update_wavelengths( ref, reference=True )
     ss_fbgneedle.update_wavelengths( wls )
+    temperataure_compensation_test(ss_fbgneedle)
 
     # test straight needle insertion (Constant Curvature)
     print( 'Constant Curvature' )

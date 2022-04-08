@@ -268,7 +268,7 @@ class FBGNeedle( Needle ):
     # __str__
 
     def __repr__( self ):
-        return "FBGneedle:" + str( self )
+        return "FBGneedle:\n" + str( self )
 
     # __repr__
 
@@ -876,14 +876,21 @@ class FBGNeedle( Needle ):
 
         # get AA assignments
         aa_assignments = np.array( self.__assignments_aa() )
+        num_dims = proc_signals.ndim
         proc_signals_Tcomp = proc_signals.copy()
+
 
         # iterate through active areas
         for aa_i in range( 1, self.num_activeAreas + 1 ):
             aa_i_mask = (aa_assignments == aa_i)  # pick out the active areas
 
-            mean_aai_signals = np.mean( proc_signals[ :, aa_i_mask ], axis=1, keepdims=True )
-            proc_signals_Tcomp[ :, aa_i_mask ] -= mean_aai_signals  # T compensation
+            if num_dims == 1:
+                mean_aai_signals = np.mean( proc_signals[ aa_i_mask ], axis=0, keepdims=True )
+                proc_signals_Tcomp[ aa_i_mask ] -= mean_aai_signals  # T compensation
+
+            elif num_dims == 2:
+                mean_aai_signals = np.mean( proc_signals[ :, aa_i_mask ], axis=1, keepdims=True )
+                proc_signals_Tcomp[ :, aa_i_mask ] -= mean_aai_signals  # T compensation
 
         # for
 
