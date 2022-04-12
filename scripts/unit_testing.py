@@ -126,7 +126,7 @@ def integration_speed_test(
 # integration_speed_test
 
 def temperataure_compensation_test( ss_fbgneedle: ShapeSensingFBGNeedle ):
-    print("Testing Temperature compensation function")
+    print( "Testing Temperature compensation function" )
 
     wls_zeros1 = np.zeros( ss_fbgneedle.num_signals )
     print( f"Testing Zero array of size: {wls_zeros1.shape}" )
@@ -146,18 +146,19 @@ def temperataure_compensation_test( ss_fbgneedle: ShapeSensingFBGNeedle ):
     print( ss_fbgneedle.temperature_compensate( wls_zeros3 ) )
     print()
 
-    wls = np.arange( ss_fbgneedle.num_activeAreas )[np.newaxis].\
-              repeat( ss_fbgneedle.num_channels, axis=0 ).ravel().astype(float)
+    wls = np.arange( ss_fbgneedle.num_activeAreas )[ np.newaxis ]. \
+        repeat( ss_fbgneedle.num_channels, axis=0 ).ravel().astype( float )
     print( f"Testing array = \n{wls}" )
     print( "Result = " )
     print( ss_fbgneedle.temperature_compensate( wls ) )
     print()
 
-    wls_mat = wls[np.newaxis].repeat(5, axis=0)
+    wls_mat = wls[ np.newaxis ].repeat( 5, axis=0 )
     print( f"Testing array = \n{wls_mat}" )
-    print("Result = ")
+    print( "Result = " )
     print( ss_fbgneedle.temperature_compensate( wls_mat ) )
     print()
+
 
 # temperature_compensation_test
 
@@ -177,7 +178,7 @@ def main():
 
     ss_fbgneedle.update_wavelengths( ref, reference=True )
     ss_fbgneedle.update_wavelengths( wls )
-    temperataure_compensation_test(ss_fbgneedle)
+    temperataure_compensation_test( ss_fbgneedle )
 
     # test straight needle insertion (Constant Curvature)
     print( 'Constant Curvature' )
@@ -222,8 +223,9 @@ def main():
     # print()
 
     # scipy integration - tests
-    kc = [ 1e-4, 1e-3 ]
-    w_init = [ np.zeros( 3 ), 0.01 * np.ones( 3 ) ]
+    kc = [ 1e-4, 1e-3, 3e-3, 5e-3 ]
+    w_init = [ np.zeros( 3 ), 0.01 * np.ones( 3 ), kc[ 2 ] * np.array( [ 1, 0, 0 ] ),
+               kc[ 3 ] * np.ones( 3 ) ]
     methods = [ 'odeint', 'RK23', 'RK45', 'LSODA', "discrete" ]
     integration_speed_test( ss_fbgneedle, methods, kc, w_init )
     integration_stability_test( ss_fbgneedle, methods, kc, w_init )
