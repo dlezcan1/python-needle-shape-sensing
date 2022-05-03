@@ -241,7 +241,10 @@ def is_symm( X: np.ndarray ) -> bool:
 def quat2rotm( q: np.ndarray ) -> np.ndarray:
     """ Convert a unit quaternion to a """
     q = q.astype( float )
-    q /= np.linalg.norm( q )  # ensure unit
+    if np.linalg.norm( q ) > 0:
+        q /= np.linalg.norm( q )  # ensure unit
+    else:
+        q = np.array( [ 1, 0, 0, 0 ], dtype=np.float )
 
     # unpack quaternion
     c, v = q[ 0 ], q[ 1:4 ]  # cos(theta/2), sin(theta/2) * w
@@ -333,21 +336,24 @@ def rot2d( t: float ) -> np.ndarray:
 
 def rotx( t: float ) -> np.ndarray:
     """ Rotation matrix about x-axis"""
-    return np.array( [ [ 1, 0, 0 ], [ 0, np.cos( t ), -np.sin( t ) ], [ 0, np.sin( t ), np.cos( t ) ] ] )
+    return np.array(
+            [ [ 1, 0, 0 ], [ 0, np.cos( t ), -np.sin( t ) ], [ 0, np.sin( t ), np.cos( t ) ] ] )
 
 
 # rotx
 
 def roty( t: float ) -> np.ndarray:
     """ Rotation matrix about y-axis"""
-    return np.array( [ [ np.cos( t ), 0, np.sin( t ) ], [ 0, 1, 0 ], [ -np.sin( t ), 0, np.cos( t ) ] ] )
+    return np.array(
+            [ [ np.cos( t ), 0, np.sin( t ) ], [ 0, 1, 0 ], [ -np.sin( t ), 0, np.cos( t ) ] ] )
 
 
 # roty
 
 def rotz( t: float ) -> np.ndarray:
     """ Rotation matrix about z-axis"""
-    return np.array( [ [ np.cos( t ), -np.sin( t ), 0 ], [ np.sin( t ), np.cos( t ), 0 ], [ 0, 0, 1 ] ] )
+    return np.array(
+            [ [ np.cos( t ), -np.sin( t ), 0 ], [ np.sin( t ), np.cos( t ), 0 ], [ 0, 0, 1 ] ] )
 
 
 # rotz
