@@ -1,4 +1,5 @@
 from timeit import timeit
+import json
 
 import numpy as np
 
@@ -8,6 +9,8 @@ from needle_shape_sensing.cost_functions import singlebend_singlelayer_cost
 from needle_shape_sensing.numerical import integrateEP_w0, integrateEP_w0_ode, integratePose_wv
 
 avgtimeit = lambda f, number: timeit( f, number=int( number ) ) / int( number )
+
+
 
 
 def integration_stability_test( ss_fbgneedle, methods: list, kc_l: list, w_init_l: list ):
@@ -161,6 +164,7 @@ def temperataure_compensation_test( ss_fbgneedle: ShapeSensingFBGNeedle ):
 
 
 # temperature_compensation_test
+
 
 
 def main():
