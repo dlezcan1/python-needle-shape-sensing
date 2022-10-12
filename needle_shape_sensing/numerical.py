@@ -586,7 +586,7 @@ def integratePose_wv(
     # integrate angular deviation vector in order to get the pose
     for i in range( 1, N ):
         ds = s[ i ] - s[ i - 1 ]
-        Rmat[ i ] = exp2r( ds * np.mean( wv[ i - 1:i ], axis=0 ) )
+        Rmat[ i ] = Rmat[ i - 1 ] @ exp2r( ds * np.mean( wv[ i - 1:i ], axis=0 ) )
 
         e3vec = Rmat[ :i + 1, :, 2 ].T  # grab z-direction coordinates
 
@@ -651,10 +651,12 @@ def simpson_vec_int( f: np.ndarray, dx: float ) -> np.ndarray:
     # perform the integration
     if num_intervals == 2:  # base case 1
         int_res = dx / 3 * np.sum( f[ :, 0:3 ] * [ [ 1, 4, 1 ] ], axis=1 )
+        return int_res
 
     # if
     elif num_intervals == 3:  # base case 2
         int_res = 3 / 8 * dx * np.sum( f[ :, 0:4 ] * [ [ 1, 3, 3, 1 ] ], axis=1 )
+        return int_res
 
     # elif
 
