@@ -25,29 +25,34 @@ class Needle( object ):
     DIAM_19G = 1.067
     DIAM_20G = 0.908
     DIAM_21G = 0.819
-    DIAM_GAUGE = { '17G': DIAM_17G,
-                   '18G': DIAM_18G,
-                   '19G': DIAM_19G,
-                   '20G': DIAM_20G,
-                   '21G': DIAM_21G,
-                   }
+    DIAM_GAUGE = {
+            '17G': DIAM_17G,
+            '18G': DIAM_18G,
+            '19G': DIAM_19G,
+            '20G': DIAM_20G,
+            '21G': DIAM_21G,
+    }
 
     # Young's Modulus (N/mm^2)
     EMOD_ST_STEEL304 = 200 * 10 ** 3  # N/mm^2
     EMOD_NITINOL = 83 * 10 ** 3  # N/mm^2
-    EMOD = { 'stainless-steel-304': EMOD_ST_STEEL304,
-             'nitinol'            : EMOD_NITINOL
-             }
+    EMOD = {
+            'stainless-steel-304': EMOD_ST_STEEL304,
+            'nitinol'            : EMOD_NITINOL
+    }
 
     # Poisson's Ratio
     P_RATIO_ST_STEEL304 = 0.29
     P_RATIO_NITINOL = 0.33
-    P_RATIO = { 'stainless-steel-304': P_RATIO_ST_STEEL304,
-                'nitinol'            : P_RATIO_NITINOL
-                }
+    P_RATIO = {
+            'stainless-steel-304': P_RATIO_ST_STEEL304,
+            'nitinol'            : P_RATIO_NITINOL
+    }
 
-    def __init__( self, length: float, serial_number: str, diameter: float = None, Emod: float = None,
-                  pratio: float = None ):
+    def __init__(
+            self, length: float, serial_number: str, diameter: float = None, Emod: float = None,
+            pratio: float = None
+    ):
         """ constructor
 
             Args:
@@ -161,12 +166,13 @@ class Needle( object ):
     # =============== FUNCTIONS ================================== #
     def to_dict( self ) -> dict:
         """ Convert object to a dictionary"""
-        return { 'serial number': self.serial_number,
-                 'length'       : self.length,
-                 'diameter'     : self.diameter,
-                 'Emod'         : self.Emod,
-                 'pratio'       : self.pratio
-                 }
+        return {
+                'serial number': self.serial_number,
+                'length'       : self.length,
+                'diameter'     : self.diameter,
+                'Emod'         : self.Emod,
+                'pratio'       : self.pratio
+        }
 
     # to_dict
 
@@ -179,8 +185,10 @@ class FBGNeedle( Needle ):
     This is a class for FBG Needle parameters containment.
     """
 
-    def __init__( self, length: float, serial_number: str, num_channels: int, sensor_location=None,
-                  calibration_mats=None, weights=None, **kwargs ):
+    def __init__(
+            self, length: float, serial_number: str, num_channels: int, sensor_location=None,
+            calibration_mats=None, weights=None, **kwargs
+    ):
         """
         Constructor
 
@@ -487,8 +495,10 @@ class FBGNeedle( Needle ):
     # __assignments_ch
 
     @staticmethod
-    def calculate_length_measured( s_m: np.ndarray, L: float, tip: bool = True, needle_length: float = None,
-                                   valid: bool = False ):
+    def calculate_length_measured(
+            s_m: np.ndarray, L: float, tip: bool = True, needle_length: float = None,
+            valid: bool = False
+    ):
         """ Determine (and return) which lengths are valid
 
             :param s_m: the measured arclengths
@@ -496,6 +506,10 @@ class FBGNeedle( Needle ):
             :param tip: (Default = True) whether the measured arclengths are from the tip of the needle or not.
             :param needle_length: (Default = None) float of the entire needle length. Only needed if tip = False
             :param valid: (Default = False) whether to only return valid arclengths
+
+            :returns: s_valid, s_valid_mask
+                - s_valid: the arclengths inside the tissue, calculated from tip if tip=True
+                - s_valid_mask: the mask which will declare which lengths are inside the tissue
         """
         # calculate the valid measurement locations
         if tip:
@@ -570,7 +584,7 @@ class FBGNeedle( Needle ):
             if temp_comp:
                 # proc_signals = fbg_signal_processing.temperature_compensation( proc_signals, self.num_channels,
                 #                                                                self.num_activeAreas )
-                proc_signals = self.temperature_compensate(proc_signals, arg_check=False)
+                proc_signals = self.temperature_compensate( proc_signals, arg_check=False )
 
             # if
 
@@ -751,8 +765,10 @@ class FBGNeedle( Needle ):
         pratio = data.get( 'pratio', None )
 
         # instantiate the FBGNeedle class object
-        fbg_needle = FBGNeedle( data[ 'length' ], data[ 'serial number' ], data[ '# channels' ], sensor_locations,
-                                cal_mats, weights, diameter=diameter, Emod=Emod, pratio=pratio )
+        fbg_needle = FBGNeedle(
+                data[ 'length' ], data[ 'serial number' ], data[ '# channels' ], sensor_locations,
+                cal_mats, weights, diameter=diameter, Emod=Emod, pratio=pratio
+        )
 
         # return the instantiation
         return fbg_needle
@@ -768,8 +784,10 @@ class FBGNeedle( Needle ):
         
         """
         # place the saved data into the json file
-        data = { "serial number" : self.serial_number, "length": self.length, "# channels": self.num_channels,
-                 "# active areas": self.num_activeAreas }  # initialize the json dictionary
+        data = {
+                "serial number" : self.serial_number, "length": self.length, "# channels": self.num_channels,
+                "# active areas": self.num_activeAreas
+        }  # initialize the json dictionary
 
         if self.sensor_location:
             data[ "Sensor Locations" ] = { }
@@ -875,10 +893,9 @@ class FBGNeedle( Needle ):
         # if
 
         # get AA assignments
-        aa_assignments = np.array( self.__assignments_aa() )
+        aa_assignments = np.array( self.assignments_aa() )
         num_dims = proc_signals.ndim
         proc_signals_Tcomp = proc_signals.copy()
-
 
         # iterate through active areas
         for aa_i in range( 1, self.num_activeAreas + 1 ):
@@ -898,7 +915,116 @@ class FBGNeedle( Needle ):
 
     # temperature_compensation
 
+
 # class: FBGNeedle
+
+class MCFNeedle( FBGNeedle ):
+    def __init__(
+            self, length: float, serial_number: str, num_channels: int, central_core_ch: int, sensor_location=None,
+            calibration_mats=None, weights=None, **kwargs
+    ):
+        """
+        Constructor
+
+        Args:
+            - length: float, of the length of the entire needle (mm)
+            - num_channels: int, the number of channels there are
+            - sensor_location: list, the arclength locations (mm) of the AA's (default = None)
+                This measurement is from the base of the needle
+        """
+        super().__init__(
+                length,
+                serial_number,
+                num_channels,
+                sensor_location=sensor_location,
+                calibration_mats=calibration_mats,
+                weights=weights,
+                **kwargs,
+        )
+        self.central_core_ch = central_core_ch
+
+        # (static/class) methods -> instance methods
+        self.assignments_centralcore = self.__assignments_centralcore
+
+    # __init__
+
+    @staticmethod
+    def assignments_centralcore( num_channels, num_active_areas, central_core_ch ):
+        """ Return the Central core assignments mask """
+        ch_assignments = np.asarray( MCFNeedle.assignments_ch( num_channels, num_active_areas ) )
+
+        return (ch_assignments == central_core_ch).tolist()
+
+    # assignments_centralcore
+
+    def __assignments_centralcore( self ):
+        """ Instance method of assignments_centralcore """
+        return MCFNeedle.assignments_centralcore(
+                self.num_channels,
+                self.num_activeAreas,
+                self.central_core_ch
+        )
+
+    # __assignments_centralcore
+
+    def temperature_compensate( self, proc_signals: np.ndarray, arg_check: bool = True ) -> np.ndarray:
+        """ Perform temperature compensation using the central core for processed signals
+
+            :param proc_signals: numpy array of processed signals (N x (# CHs x #AAs) size)
+            :param arg_check: boolean of whether to check the input arguments or not
+
+            :return: temperature compensated signals of the same size as proc_signals
+        """
+        if arg_check:
+            if proc_signals.ndim == 1 and proc_signals.shape[ 0 ] != self.num_signals:
+                raise AttributeError( "Size of processed signals is incorrect." )
+
+            elif proc_signals.ndim == 2 and proc_signals.shape[ 1 ] != self.num_signals:
+                raise AttributeError( "Size of processed signals is incorrect." )
+
+            elif proc_signals.ndim > 2 or proc_signals.ndim < 1:
+                raise AttributeError( "Size of processed signals must be a 1D vector or 2D matrix." )
+
+        # if
+
+        aa_assignments = np.array( self.assignments_aa() )
+        cc_assignments = np.array( self.assignments_centralcore() )
+        num_dims = proc_signals.ndim
+        proc_signals_Tcomp = proc_signals.copy()
+
+        for aa_i in range(1, self.num_activeAreas + 1):
+            aa_i_mask = (aa_assignments == aa_i)
+            if num_dims == 1:
+                proc_signals_Tcomp[aa_i_mask] -= proc_signals[
+                    aa_i_mask & cc_assignments
+                ]
+
+            # if
+            elif num_dims == 2:
+                proc_signals_Tcomp[:, aa_i_mask] -= proc_signals[
+                     :,
+                     aa_i_mask & cc_assignments
+                ]
+
+            # elif
+
+        # for
+
+        return proc_signals_Tcomp
+
+    # temperature_compensate
+
+    def to_dict( self ) -> dict:
+        """ To a dictionary value """
+        data = super().to_dict()
+        data[ "Central Core CH" ] = self.central_core_ch
+
+        return data
+
+    # to_dict
+
+
+# class: MCFNeedle
 
 
 def __get_argparser() -> argparse.ArgumentParser:
@@ -906,8 +1032,10 @@ def __get_argparser() -> argparse.ArgumentParser:
     # Setup parsed arguments
     parser = argparse.ArgumentParser( description="Make a new/Update an existing needle FBG parameter" )
 
-    parser.add_argument( '--update-params', type=str, default=None, help='Update the FBG needle parameter file',
-                         dest='update_file' )
+    parser.add_argument(
+            '--update-params', type=str, default=None, help='Update the FBG needle parameter file',
+            dest='update_file'
+    )
 
     needle_diam_grp = parser.add_mutually_exclusive_group( required=False )
     needle_diam_grp.add_argument( '--needle-gauge', type=str, default=None, help='The gauge of the needle (eg. 18G)' )
@@ -987,8 +1115,10 @@ def main( args=None ):
     else:
         save_file = os.path.join( directory, '../needle_params.json' )
         print( "New needle parameters:" )
-        needle = FBGNeedle( length, serial_number, num_chs, aa_locs, diameter=diameter,
-                            Emod=Emod, pratio=pratio )
+        needle = FBGNeedle(
+                length, serial_number, num_chs, aa_locs, diameter=diameter,
+                Emod=Emod, pratio=pratio
+        )
 
     # else
 
