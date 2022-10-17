@@ -21,6 +21,61 @@ class SHAPETYPE( Flag ):
     SINGLEBEND_DOUBLELAYER = 0x02
     DOUBLEBEND_SINGLELAYER = 0x10 | SINGLEBEND_SINGLELAYER
 
+    def get_k0( self ):
+        """ Get the intrinsics kappa 0 function
+
+        """
+        k0_fns = {
+                SHAPETYPE.CONSTANT_CURVATURE    : ConstantCurvature.k0,
+                SHAPETYPE.SINGLEBEND_SINGLELAYER: SingleBend.k0_1layer,
+                SHAPETYPE.SINGLEBEND_DOUBLELAYER: SingleBend.k0_2layer,
+                SHAPETYPE.DOUBLEBEND_SINGLELAYER: DoubleBend.k0_1layer,
+        }
+
+        return k0_fns[ self ]
+
+    # get_k0
+
+    def get_shape_class( self ):
+        """ Get the intrinsics shape class
+
+        """
+        classes = {
+                SHAPETYPE.CONSTANT_CURVATURE    : ConstantCurvature,
+                SHAPETYPE.SINGLEBEND_SINGLELAYER: SingleBend,
+                SHAPETYPE.SINGLEBEND_DOUBLELAYER: SingleBend,
+                SHAPETYPE.DOUBLEBEND_SINGLELAYER: DoubleBend,
+        }
+
+        return classes[ self ]
+
+    # get_shape_class
+
+    def k0( self, *args, **kwargs ):
+        """ Get kappa_0 """
+        return self.get_k0()( *args, **kwargs )
+
+    # k0
+
+    def w0( self, *args, **kwargs ):
+        """ Get omega_o intrinsic 3D curvature function """
+        k0 = self.k0(*args, **kwargs)
+        if callable( k0 ):
+            w0 = lambda s: np.array( [ k0( s ), 0, 0 ], dtype=np.float )
+
+        # if
+        else:
+            w0 = np.vstack(
+                    (k0, np.zeros( (2, k0.size) )),
+                    dtype=k0.dtype
+            )
+
+        # else
+
+        return w0
+
+    # w0
+
 
 # enum class: SHAPETYPES
 
@@ -71,8 +126,10 @@ class AirDeflection:
         z = np.linspace( 0, z_ins, int( z_ins // dz ) + 1 )
 
         # compute points along z-axis
-        points_z = np.hstack( (a_xy.reshape( 1, -1 ) * (z ** 3 - 3 * L_entry * z_ins ** 2).reshape( -1, 1 ),
-                               z.reshape( -1, 1 )) )
+        points_z = np.hstack(
+                (a_xy.reshape( 1, -1 ) * (z ** 3 - 3 * L_entry * z_ins ** 2).reshape( -1, 1 ),
+                 z.reshape( -1, 1 ))
+        )
 
         L, _ = geometry.arclength( points_z, axis=0 )
 
@@ -103,7 +160,8 @@ class AirDeflection:
         # determine z-coordinates to use based on arclengths
         if a_xy_norm > 0:
             s_tot = (z_ins * np.sqrt( 1 + 4 * (a_xy_norm ** 2) * (z_ins ** 2) ) + np.arcsinh(
-                    2 * a_xy_norm * z_ins ) / (
+                    2 * a_xy_norm * z_ins
+            ) / (
                              2 * a_xy_norm)) / 2
 
         # if
@@ -243,8 +301,10 @@ class SingleBend:
     # k0_1layer
 
     @staticmethod
-    def k0_2layer( s: np.ndarray, kc_1: float, kc_2: float, length: float, s_crit: float,
-                   return_callable: bool = False ):
+    def k0_2layer(
+            s: np.ndarray, kc_1: float, kc_2: float, length: float, s_crit: float,
+            return_callable: bool = False
+    ):
         """
         Intrinsics curvatures of the double layer insertion scenario
         
@@ -321,8 +381,10 @@ class SingleBend:
     # k0_2layer
 
     @staticmethod
-    def k0_3layer( s: np.ndarray, kc_1: float, kc_2: float, kc_3: float, length: float, s_crit_1: float,
-                   s_crit_2: float, return_callable: bool = False ):
+    def k0_3layer(
+            s: np.ndarray, kc_1: float, kc_2: float, kc_3: float, length: float, s_crit_1: float,
+            s_crit_2: float, return_callable: bool = False
+    ):
         """
         Intrinsics curvatures of the double layer insertion scenario
 
@@ -428,9 +490,11 @@ class SingleBend:
     # k0_3layer
 
     @staticmethod
-    def determine_2layer_boundary( kc1: float, length: float, z_crit, B: np.ndarray, w_init: np.ndarray = None,
-                                   s0: float = 0, ds: float = 0.5, R_init: np.ndarray = np.eye( 3 ),
-                                   Binv: np.ndarray = None, needle_rotations: list = None, continuous: bool = False ):
+    def determine_2layer_boundary(
+            kc1: float, length: float, z_crit, B: np.ndarray, w_init: np.ndarray = None,
+            s0: float = 0, ds: float = 0.5, R_init: np.ndarray = np.eye( 3 ),
+            Binv: np.ndarray = None, needle_rotations: list = None, continuous: bool = False
+    ):
         """
             Determine the length of the needle that is inside the first layer only (s_crit)
 
@@ -469,8 +533,10 @@ class SingleBend:
             w0 = lambda s: np.append( k0( s ), [ 0, 0 ] )
             w0prime = lambda s: np.append( k0prime( s ), [ 0, 0 ] )
 
-            pmat_single, *_ = numerical.integrateEP_w0_ode( w_init, w0, w0prime, B, s=s, R_init=R_init, Binv=Binv,
-                                                            arg_check=False, needle_rotations=needle_rotations )
+            pmat_single, *_ = numerical.integrateEP_w0_ode(
+                    w_init, w0, w0prime, B, s=s, R_init=R_init, Binv=Binv,
+                    arg_check=False, needle_rotations=needle_rotations
+            )
         # if
         else:
             k0, k0prime = SingleBend.k0_1layer( s, kc1, length )
@@ -478,8 +544,10 @@ class SingleBend:
             w0 = np.hstack( (k0.reshape( -1, 1 ), np.zeros( (k0.size, 2) )) )
             w0prime = np.hstack( (k0prime.reshape( -1, 1 ), np.zeros( (k0prime.size, 2) )) )
 
-            pmat_single, *_ = numerical.integrateEP_w0( w_init, w0, w0prime, B, s=s, R_init=R_init, Binv=Binv,
-                                                        arg_check=False, needle_rotations=needle_rotations )
+            pmat_single, *_ = numerical.integrateEP_w0(
+                    w_init, w0, w0prime, B, s=s, R_init=R_init, Binv=Binv,
+                    arg_check=False, needle_rotations=needle_rotations
+            )
 
         # else
 
@@ -504,8 +572,10 @@ class SingleBend:
 
 class DoubleBend:
     @staticmethod
-    def k0_1layer( s: np.ndarray, kc: float, length: float, s_crit: float, p: float = 2 / 3,
-                   return_callable: bool = False ):
+    def k0_1layer(
+            s: np.ndarray, kc: float, length: float, s_crit: float, p: float = 2 / 3,
+            return_callable: bool = False
+    ):
         """
             Intrinsics curvatures of the double layer insertion scenario
 

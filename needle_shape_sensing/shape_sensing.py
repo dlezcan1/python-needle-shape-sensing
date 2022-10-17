@@ -165,7 +165,7 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
                 kc2_i = args[ 1 ]
                 if len( args ) > 2:
                     w_init_i = args[ 2 ]
-                    if ~isinstance( w_init_i, np.ndarray ) or len( w_init_i ) != 3:
+                    if not isinstance( w_init_i, np.ndarray ) or len( w_init_i ) != 3:
                         raise ValueError( "w_init_i must be a 3-D vector" )
                 else:
                     w_init_i = np.array( [ kc1_i, 0, 0 ] )
@@ -201,7 +201,7 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
                 kc_i = args[ 0 ]
                 if len( args ) > 1:
                     w_init_i = args[ 1 ]
-                    if ~isinstance( w_init_i, np.ndarray ) or len( w_init_i ) != 3:
+                    if not isinstance( w_init_i, np.ndarray ) or len( w_init_i ) != 3:
                         raise ValueError( "w_init_i must be a 3-D vector" )
                 else:
                     w_init_i = np.array( [ kc_i, 0, 0 ] )
