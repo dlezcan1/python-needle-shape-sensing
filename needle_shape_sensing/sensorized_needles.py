@@ -951,9 +951,9 @@ class MCFNeedle( FBGNeedle ):
     @staticmethod
     def assignments_centralcore( num_channels, num_active_areas, central_core_ch ):
         """ Return the Central core assignments mask """
-        ch_assignments = np.asarray( MCFNeedle.assignments_ch( num_channels, num_active_areas ) )
+        ch_assignments = MCFNeedle.assignments_ch( num_channels, num_active_areas )
 
-        return (ch_assignments == central_core_ch).tolist()
+        return [ch == central_core_ch for ch in ch_assignments]
 
     # assignments_centralcore
 
