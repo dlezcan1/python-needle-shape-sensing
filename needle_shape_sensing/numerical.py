@@ -431,7 +431,7 @@ def integrateEP_w0(
                     w0prime[ 0 ] - Binv @ np.cross( wv[ 0 ], B @ (w_init - w0[ 0 ]) ))
 
         else:
-            wv[ idx ] = wv[ idx - 2 ] + 2 * ds * (
+            wv[ idx ] = wv[ idx - 1 ] + 2 * ds * (
                     w0prime[ idx - 1 ] - Binv @ np.cross(
                     wv[ idx - 1 ], B @ (wv[ idx - 1 ] - w0[ idx - 1 ]) ))
 
