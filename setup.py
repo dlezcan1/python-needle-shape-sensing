@@ -1,11 +1,11 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
         name='needle-shape-sensing',
-        version='0.6.1',
+        version='0.6.2',
         author='Dimitri Lezcano',
         author_email='dlezcan1@jhu.edu',
-        packages=[ 'needle_shape_sensing' ],
+        packages=find_packages(),
         url='http://pypi.python.org/pypi/needle-shape-sensing/',
         license='LICENSE.txt',
         description='Needle Shape Sensing library',
