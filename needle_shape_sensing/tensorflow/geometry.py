@@ -24,7 +24,7 @@ def exp2r( w ):
     for i in range( w.shape[ 0 ] ):
         theta = tf.norm( w[ i ], ord='euclidean' )
         if theta == 0:
-            Rta.write( i, tf.eye( 3 ) )
+            Rta.write( i, tf.eye( 3, dtype=w.dtype ) )
             continue
 
         # iF

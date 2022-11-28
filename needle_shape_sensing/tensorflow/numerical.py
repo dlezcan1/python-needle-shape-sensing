@@ -1,5 +1,4 @@
 import tensorflow as tf
-import numpy as np
 
 from needle_shape_sensing.tensorflow import geometry
 
