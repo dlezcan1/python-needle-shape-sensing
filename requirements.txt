@@ -5,3 +5,6 @@ spatialmath-python>=0.10
 sympy
 numba
 tensorflow
+torch
+torchvision
+torchaudio

@@ -17,6 +17,9 @@ setup(
                 'sympy',
                 'numba',
                 'tensorflow',
+                'torch',
+                'torchvision',
+                'torchaudio',
                 ],
         classifiers=[
                 'Operating System :: OS Independent',
