@@ -95,8 +95,9 @@ def test_simpson_vec_int():
 def test_shapes():
     print( "Testing shape constructions" )
 
+    s_crit=65.0
     lengths = [ 15.0, 35.0, 95.0, 125.0 ]
-    lengths = list( sorted( lengths, reverse=True ) )
+    lengths = list( sorted( [l for l in lengths if l > s_crit], reverse=True ) )
     ds = 0.5
     kc = 0.002
     winit = tf.cast(
@@ -138,19 +139,19 @@ def test_shapes():
     # iterate through lengths
     M = -1
     for i, L in enumerate( sorted( lengths, reverse=True ) ):
-        s_L = np.arange( 0, L + ds, ds )
+        s_L = tf.range( 0, L + ds, ds, dtype=winit.dtype )
         M = max( len( s_L ), M )
 
         # intrinsics
-        k0, k0prime = nss.intrinsics.SingleBend.k0_1layer( s_L, kc, L, return_callable=False, )
-        w0_L = np.vstack( (k0, np.zeros( (2, k0.size) )) ).T
-        w0prime_L = np.vstack( (k0prime, np.zeros( (2, k0prime.size) )) ).T
+        k0, k0prime = nss.intrinsics.DoubleBend.k0_1layer( s_L.numpy(), kc, L, s_crit=s_crit, return_callable=False, )
+        w0_np = np.vstack( (k0, np.zeros( (2, k0.size) )) ).T
+        w0prime_np = np.vstack( (k0prime, np.zeros( (2, k0prime.size) )) ).T
 
         # determine needle shape for numpy version
         pmat_L, Rmat_L, wv_L = nss.numerical.integrateEP_w0(
                 winit[ i ].numpy(),
-                w0_L,
-                w0prime_L,
+                w0_np,
+                w0prime_np,
                 B.numpy(),
                 s0=0,
                 ds=ds,
@@ -158,25 +159,51 @@ def test_shapes():
                 wv_only=False,
         )
 
+        # use tensorflow intrinsics
+        k0_L, k0prime_L = nss_tf.intrinsics.DoubleBend.k0_1layer(
+                s_L,
+                kc,
+                L,
+                s_crit=65,
+                return_callable=False,
+        )
+        w0_L = tf.concat(
+                (
+                        tf.expand_dims( k0_L, axis=-1 ),
+                        tf.zeros( (k0_L.shape[ 0 ], *k0_L.shape[1:-1], 2), dtype=k0_L.dtype )
+                ),
+                axis=-1
+        )
+        w0prime_L = tf.concat(
+                (
+                        tf.expand_dims( k0prime_L, axis=-1 ),
+                        tf.zeros( (k0prime_L.shape[ 0 ], *k0prime_L.shape[1:-1], 2), dtype=k0prime_L.dtype )
+                ),
+                axis=-1
+        )
+
         # cast to full size for tensor
-        seq_mask_L = np.asarray( [ True ] * w0_L.shape[ 0 ] + [ False ] * (M - w0_L.shape[ 0 ]) )
-        w0_L = np.vstack(
+        seq_mask_L = tf.repeat( [ True, False ], [ w0_L.shape[ 0 ], M - w0_L.shape[ 0 ] ] )
+
+        w0_L = tf.concat(
                 (
                         w0_L,
-                        np.zeros( (M - w0_L.shape[ 0 ], w0_L.shape[ 1 ]) )
-                )
+                        tf.zeros( (M - w0_L.shape[ 0 ], w0_L.shape[ 1 ]), dtype=w0_L.dtype )
+                ),
+                axis=0
         )
-        w0prime_L = np.vstack(
+        w0prime_L = tf.concat(
                 (
                         w0prime_L,
-                        np.zeros( (M - w0prime_L.shape[ 0 ], w0prime_L.shape[ 1 ]) )
-                )
+                        tf.zeros( (M - w0prime_L.shape[ 0 ], w0prime_L.shape[ 1 ]), dtype=w0prime_L.dtype )
+                ),
+                axis=0
         )
 
         # append to tensor arrays
-        w0_ta = w0_ta.write( i, tf.convert_to_tensor( w0_L, dtype=w0_ta.dtype ) )
-        w0prime_ta = w0prime_ta.write( i, tf.convert_to_tensor( w0prime_L, dtype=w0prime_ta.dtype ) )
-        seq_mask_ta = seq_mask_ta.write( i, tf.convert_to_tensor( seq_mask_L, dtype=seq_mask_ta.dtype ) )
+        w0_ta = w0_ta.write( i, w0_L )
+        w0prime_ta = w0prime_ta.write( i, w0prime_L )
+        seq_mask_ta = seq_mask_ta.write( i, seq_mask_L )
 
         # append to numpy solution
         nss_shape.append( pmat_L )

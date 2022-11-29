@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
         name='needle-shape-sensing',
-        version='0.6.2',
+        version='0.6.3',
         author='Dimitri Lezcano',
         author_email='dlezcan1@jhu.edu',
         packages=find_packages(),
