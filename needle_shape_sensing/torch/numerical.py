@@ -1,12 +1,12 @@
-import tensorflow as tf
+import torch
 
-from needle_shape_sensing.tensorflow import geometry
+from needle_shape_sensing.torch import geometry
 
 
 def integrateEP_w0(
-        w_init: tf.Tensor, w0: tf.Tensor, w0prime: tf.Tensor, B: tf.Tensor,
-        seq_mask: tf.Tensor, ds: float, R_init: tf.Tensor = tf.eye( 3 ),
-        Binv: tf.Tensor = None, wv_only: bool = False
+        w_init: torch.Tensor, w0: torch.Tensor, w0prime: torch.Tensor, B: torch.Tensor,
+        seq_mask: torch.Tensor, ds: float, R_init: torch.Tensor = torch.eye( 3 ),
+        Binv: torch.Tensor = None, wv_only: bool = False
 ):
     """
     integrate Euler-Poincare equation for needle shape sensing for given intrinsic angular deformation
@@ -29,7 +29,7 @@ def integrateEP_w0(
     """
 
     if Binv is None:
-        Binv = tf.linalg.inv( B )
+        Binv = torch.linalg.inv( B )
 
     # if
 
@@ -37,52 +37,40 @@ def integrateEP_w0(
     N, M = w0.shape[ 0:2 ]
 
     # tensor-ify B and Binv
-    B_T = tf.cast(
-            tf.tile(
-                    tf.reshape( B, (1, B.shape[ 0 ], B.shape[ 1 ]) ),
-                    (N, 1, 1)
-            ), dtype=w0.dtype
-    )
-    Binv_T = tf.cast(
-            tf.tile(
-                    tf.reshape( Binv, (1, B.shape[ 0 ], B.shape[ 1 ]) ),
-                    (N, 1, 1)
-            ), dtype=w0.dtype
-    )
+    B_T =  torch.tile(
+                torch.reshape( B, (1, B.shape[ 0 ], B.shape[ 1 ]) ),
+                (N, 1, 1)
+    ).type(w0.dtype)
+    Binv_T = torch.tile(
+                torch.reshape( Binv, (1, B.shape[ 0 ], B.shape[ 1 ]) ),
+                (N, 1, 1)
+    ).type(w0.dtype)
 
     # prepare tensors
-    wv = tf.TensorArray(
-            w0.dtype,
-            size=M,
-            dynamic_size=False,
-            infer_shape=True,
-            clear_after_read=False,
-    )
-    wv = wv.write( 0, w_init )
+    wv = torch.zeros( (N, M, 3), dtype=w0.dtype, )
+    wv[:, 0] = w_init
 
     for idx in range( 1, M ):
-        seq_mask_idx = tf.expand_dims( seq_mask[ :, idx:idx + 1 ], axis=-1 )
+        seq_mask_idx = torch.unsqueeze( seq_mask[ :, idx:idx + 1 ], dim=-1 )
 
         # unpack veriables
-        w0_im1 = tf.expand_dims( w0[ :, idx - 1 ], axis=-1 )
-        w0prime_im1 = tf.expand_dims( w0prime[ :, idx - 1 ], axis=-1 )
-        wv_im1 = tf.expand_dims( wv.read( idx - 1 ), axis=-1 )
+        w0_im1 = torch.unsqueeze( w0[ :, idx - 1 ], dim=-1 )
+        w0prime_im1 = torch.unsqueeze( w0prime[ :, idx - 1 ], dim=-1 )
+        wv_im1 = torch.unsqueeze( wv[ :, idx - 1 ], dim=-1 )
         scale = 1 if idx == 1 else 2
 
         wv_i = (
-                   wv_im1 + scale * ds * (
-                        w0prime_im1 - Binv_T @ tf.linalg.cross(
-                        tf.squeeze(wv_im1, axis=-1),
-                        tf.squeeze(B_T @ (wv_im1 - w0_im1), axis=-1)
-               )[:, :, tf.newaxis]
+                       wv_im1 + scale * ds * (
+                       w0prime_im1 - Binv_T @ torch.linalg.cross(
+                       torch.squeeze( wv_im1, dim=-1 ),
+                       torch.squeeze( B_T @ (wv_im1 - w0_im1), dim=-1 )
+                       )[ :, :, None ]
                )
-               ) * tf.cast( seq_mask_idx, dtype=wv.dtype )
+               ) * seq_mask_idx.type( wv.dtype )
 
-        wv = wv.write( idx, tf.squeeze( wv_i, axis=-1 ) )
+        wv[:, idx] = torch.squeeze( wv_i, dim=-1 )
 
     # for
-
-    wv = tf.transpose( wv.stack(), [ 1, 0, 2 ] )
 
     if wv_only:
         pmat, Rmat = None, None
@@ -96,7 +84,7 @@ def integrateEP_w0(
 # integrateEP_w0
 
 def integratePose_wv(
-        wv: tf.Tensor, seq_mask: tf.Tensor, ds: float, R_init=tf.eye( 3 )
+        wv: torch.Tensor, seq_mask: torch.Tensor, ds: float, R_init=torch.eye( 3 )
 ):
     """ Integrate angular deformation to get the pose of the needle along it's arclengths
 
@@ -112,62 +100,39 @@ def integratePose_wv(
     """
     N, M = wv.shape[ 0:2 ]
 
-    pmat_ta = tf.TensorArray(
-            wv.dtype,
-            size=M,
-            dynamic_size=False,
-            infer_shape=True,
-            clear_after_read=False,
-    )  # (M, N, 3)
-    Rmat_ta = tf.TensorArray(
-            wv.dtype,
-            size=M,
-            dynamic_size=False,
-            infer_shape=True,
-            clear_after_read=False,
-    )  # (M, N, 3, 3)
+    pmat = torch.zeros( (N, M, 3), dtype=wv.dtype )  # (N, M, 3)
+    Rmat = torch.eye(3, dtype=wv.dtype)[None, None].tile((N, M, 1, 1))  # (N, M, 3, 3)
 
     # initial conditions
-    pmat_ta = pmat_ta.write( 0, tf.zeros( (N, 3), dtype=pmat_ta.dtype ) )
-    Rmat_ta = Rmat_ta.write(
-            0, tf.cast(
-                    tf.tile(
-                            tf.reshape( R_init, (1, R_init.shape[ 0 ], R_init.shape[ 1 ]) ),
-                            (N, 1, 1)
-                    ), dtype=Rmat_ta.dtype
-            )
-    )
+    Rmat[:, 0] = R_init.type(Rmat.dtype)
 
     for idx in range( 1, M ):
         # unpack vars
-        seq_mask_i = seq_mask[ :, idx ]
-        Rmat_im1 = Rmat_ta.read( idx - 1 )  # (N, 3, 3)
-        pmat_im1 = pmat_ta.read( idx - 1 )  # (N, 3)
+        seq_mask_i = seq_mask[ :, idx ]  # (N, )
+        Rmat_im1 = Rmat[:, idx - 1 ]  # (N, 3, 3)
+        pmat_im1 = pmat[:, idx - 1 ]  # (N, 3)
 
         # integrate
         Rmat_i = Rmat_im1 @ (
                 geometry.exp2r(
-                        ds * tf.reduce_mean( wv[ :, idx - 1:idx ], axis=1 )
-                ) * tf.cast( seq_mask_i[ :, tf.newaxis, tf.newaxis ], dtype=wv.dtype )
+                        ds * torch.mean( wv[ :, idx - 1:idx ], dim=1 )
+                        ) * seq_mask_i[ :, None, None ].type( wv.dtype )
         )
 
         # add results for Rmat
-        Rmat_ta = Rmat_ta.write( idx, Rmat_i )
+        Rmat[:, idx] = Rmat_i
 
-        e3vec = tf.transpose( Rmat_ta.stack()[ :idx + 1, :, :, 2 ], [ 1, 0, 2 ] )  # grab z-directions
         if idx == 1:
             pmat_i = pmat_im1 + Rmat_i[ :, :, 2 ] * ds
 
         else:
+            e3vec = Rmat[ :, :idx + 1, :, 2 ]  # grab z-directions
             pmat_i = simpson_vec_int( e3vec, ds, seq_mask[ :, :idx + 1 ] )
 
         # add results for pmat
-        pmat_ta = pmat_ta.write( idx, pmat_i )
+        pmat[:, idx] =  pmat_i
 
     # for
-
-    Rmat = tf.transpose( Rmat_ta.stack(), [ 1, 0, 2, 3 ] )
-    pmat = tf.transpose( pmat_ta.stack(), [ 1, 0, 2 ] )
 
     return pmat, Rmat, seq_mask
 
@@ -175,7 +140,7 @@ def integratePose_wv(
 # integratePose_wv
 
 
-def simpson_vec_int( f: tf.Tensor, dx: float, seq_mask: tf.Tensor ):
+def simpson_vec_int( f: torch.Tensor, dx: float, seq_mask: torch.Tensor ):
     """ Implementation of Simpson vector integration for tensor integration
 
             Original Author (MATLAB): Jin Seob Kim
@@ -195,14 +160,15 @@ def simpson_vec_int( f: tf.Tensor, dx: float, seq_mask: tf.Tensor ):
     num_intervals = M - 1
     assert (num_intervals > 1)
 
-    f_masked = f * tf.cast( seq_mask[ :, :, tf.newaxis ], dtype=f.dtype )
+    f_masked = f * seq_mask[ :, :, None ].type( f.dtype )
 
     # perform the integration
-    int_res = tf.zeros( (f.shape[ 0 ], f.shape[ 2 ]), dtype=f.dtype )
+    int_res = torch.zeros( (f.shape[ 0 ], f.shape[ 2 ]), dtype=f.dtype )
     if num_intervals == 2:
-        int_res = dx / 3 * tf.reduce_sum(
-                f_masked[ :, 0:3 ] * tf.cast( tf.reshape( [ 1., 4., 1. ], (1, -1, 1) ), dtype=f_masked.dtype ),
-                axis=1
+        int_res = dx / 3 * torch.sum(
+                f_masked[ :, 0:3 ]
+                * torch.reshape( [ 1., 4., 1. ], (1, -1, 1) ).type( f_masked.dtype ),
+                dim=1
         )
 
         return int_res
@@ -210,9 +176,10 @@ def simpson_vec_int( f: tf.Tensor, dx: float, seq_mask: tf.Tensor ):
     # if
 
     elif num_intervals == 3:
-        int_res = 3 / 8 * dx * tf.reduce_sum(
-                f_masked[ :, 0:4 ] * tf.cast( tf.reshape( [ 1., 3., 3., 1. ], (1, -1, 1) ), dtype=f_masked.dtype ),
-                axis=1
+        int_res = 3 / 8 * dx * torch.sum(
+                f_masked[ :, 0:4 ] 
+                * torch.reshape( [ 1., 3., 3., 1. ], (1, -1, 1) ).type( f_masked.dtype ),
+                dim=1
         )
 
         return int_res
@@ -222,10 +189,11 @@ def simpson_vec_int( f: tf.Tensor, dx: float, seq_mask: tf.Tensor ):
     if num_intervals % 2 != 0:
         int_res = (
                 int_res +
-                3 / 8 * dx * tf.reduce_sum(
-                f_masked[ :, -4: ] * tf.cast( tf.reshape( [ 1., 3., 3., 1. ], (1, -1, 1) ), dtype=f_masked.dtype ),
-                axis=1
-        )
+                3 / 8 * dx * torch.sum(
+                    f_masked[ :, -4: ] 
+                    * torch.reshape( [ 1., 3., 3., 1. ], (1, -1, 1) ).type( f_masked.dtype ),
+                    dim=1
+                )
         )
         m = num_intervals - 3
 
@@ -239,18 +207,14 @@ def simpson_vec_int( f: tf.Tensor, dx: float, seq_mask: tf.Tensor ):
             int_res
             + dx / 3 * (
                     f_masked[ :, 0 ] + f_masked[ :, m ]
-                    + 4 * tf.reduce_sum(
-                    f_masked[ :, 1:m:2 ], axis=1
-            )
+                    + 4 * torch.sum( f_masked[ :, 1:m:2 ], dim=1 )
             )
     )
 
     if m > 2:
         int_res = (
                 int_res
-                + 2 / 3 * dx * tf.reduce_sum(
-                f_masked[ :, 2:m:2 ], axis=1
-        )
+                + 2 / 3 * dx * torch.sum( f_masked[ :, 2:m:2 ], dim=1 )
         )
     # if
 

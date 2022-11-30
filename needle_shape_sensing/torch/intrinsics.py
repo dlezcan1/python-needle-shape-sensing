@@ -7,11 +7,10 @@ Author: Dimitri Lezcano
 """
 
 from enum import Flag
-from typing import Union, Callable
 
-import tensorflow as tf
+import torch
 
-from . import numerical, geometry
+from needle_shape_sensing.torch import numerical, geometry
 
 
 class SHAPETYPE( Flag ):
@@ -61,13 +60,13 @@ class SHAPETYPE( Flag ):
         """ Get omega_o intrinsic 3D curvature function """
         k0 = self.k0( *args, **kwargs )
         if callable( k0 ):
-            w0 = lambda s: tf.convert_to_tensor( [ k0( s ), 0, 0 ], dtype=k0( s ).dtype )
+            w0 = lambda s: torch.Tensor( [ k0( s ), 0, 0 ], dtype=k0( s ).dtype )
 
         # if
         else:
-            w0 = tf.concat(
-                    (k0, tf.zeros( (2, k0.shape[ 0 ]), dtype=k0.dtype )),
-                    axis=0
+            w0 = torch.cat(
+                    (k0, torch.zeros( (2, k0.shape[ 0 ]), dtype=k0.dtype )),
+                    dim=0
             )
 
         # else
@@ -81,8 +80,7 @@ class SHAPETYPE( Flag ):
 
 class SingleBend:
     @staticmethod
-    def k0_1layer( s: tf.Tensor, kc: float, length: float, return_callable: bool = False ) -> (
-            Union[ tf.Tensor, Callable ], Union[ tf.Tensor, Callable ]):
+    def k0_1layer( s: torch.Tensor, kc: float, length: float, return_callable: bool = False ):
         """
         Intrinsics curvatures of the double layer insertion scenario
 
@@ -112,7 +110,7 @@ class SingleBend:
 
     @staticmethod
     def k0_2layer(
-            s: tf.Tensor, kc_1: float, kc_2: float, length: float, s_crit: float,
+            s: torch.Tensor, kc_1: float, kc_2: float, length: float, s_crit: float,
             return_callable: bool = False
     ):
         """
@@ -163,19 +161,19 @@ class SingleBend:
         # if
         else:
             # first layer processing
-            s_1 = tf.boolean_mask( s, s <= s_crit )
+            s_1 = torch.masked_select( s, s <= s_crit )
             k0_1 = kc_1 * ((s_crit - s_1) / length) ** 2 + kc_2 * (1 - s_crit / length) * (
                     1 + s_crit / length - 2 * s_1 / length)
             k0prime_1 = -2 * kc_1 / length ** 2 * (s_crit - s_1) - 2 * kc_2 / length * (1 - s_crit / length)
 
             # second layer processing
-            s_2 = tf.boolean_mask( s, s > s_crit )
+            s_2 = torch.masked_select( s, s > s_crit )
             k0_2 = kc_2 * (1 - s_2 / length) ** 2
             k0prime_2 = -2 * kc_2 / length * (1 - s_2 / length)
 
             # set the return values
-            k0 = tf.concat( (k0_1, k0_2), axis=0 )
-            k0prime = tf.concat( (k0prime_1, k0prime_2), axis=0 )
+            k0 = torch.cat( (k0_1, k0_2), dim=0 )
+            k0prime = torch.cat( (k0prime_1, k0prime_2), dim=0 )
 
         # else
 
@@ -185,7 +183,7 @@ class SingleBend:
 
     @staticmethod
     def k0_3layer(
-            s: tf.Tensor, kc_1: float, kc_2: float, kc_3: float, length: float, s_crit_1: float,
+            s: torch.Tensor, kc_1: float, kc_2: float, kc_3: float, length: float, s_crit_1: float,
             s_crit_2: float, return_callable: bool = False
     ):
         """
@@ -250,7 +248,7 @@ class SingleBend:
         else:
 
             # first layer processing
-            s_1 = tf.boolean_mask( s, s <= s_crit_1 )
+            s_1 = torch.masked_select( s, s <= s_crit_1 )
             # k0_1 = kc_1 * ((s_crit_1 - s_1) / length) ** 2 + kc_2 * (s_crit_2 - s_crit_1) / length * (
             #         s_crit_2 + s_crit_1)
             k0_1 = kc_1 * (s_crit_1 - s_1) ** 2 / length ** 2 + kc_2 * (s_crit_2 - s_crit_1) * (
@@ -261,19 +259,19 @@ class SingleBend:
                     s_crit_2 - s_crit_1) - 2 * kc_3 / length * (1 - s_crit_2 / length)
 
             # second layer processing
-            s_2 = tf.boolean_mask( s, (s_crit_1 < s) & (s <= s_crit_2) )
+            s_2 = torch.masked_select( s, (s_crit_1 < s) & (s <= s_crit_2) )
             k0_2 = kc_2 * (s_crit_2 - s_2) ** 2 / length ** 2 + kc_3 * (1 - s_crit_2 / length) * (
                     1 + s_crit_2 / length - 2 * s_2 / length)
             k0prime_2 = -2 * kc_2 / length ** 2 * (s_crit_2 - s_2) - 2 * kc_3 / length * (1 - s_crit_2 / length)
 
             # third layer processing
-            s_3 = tf.boolean_mask( s, s > s_crit_2 )
+            s_3 = torch.masked_select( s, s > s_crit_2 )
             k0_3 = kc_3 * (1 - s_3 / length) ** 2
             k0prime_3 = -2 * kc_3 / length * (1 - s_3 / length)
 
             # set the return values
-            k0 = tf.concat( (k0_1, k0_2, k0_3), axis=0 )
-            k0prime = tf.concat( (k0prime_1, k0prime_2, k0prime_3), axis=0 )
+            k0 = torch.cat( (k0_1, k0_2, k0_3), dim=0 )
+            k0prime = torch.cat( (k0prime_1, k0prime_2, k0prime_3), dim=0 )
 
         # else
 
@@ -287,7 +285,7 @@ class SingleBend:
 class DoubleBend:
     @staticmethod
     def k0_1layer(
-            s: tf.Tensor, kc: float, length: float, s_crit: float, p: float = 2 / 3,
+            s: torch.Tensor, kc: float, length: float, s_crit: float, p: float = 2 / 3,
             return_callable: bool = False
     ):
         """
@@ -340,26 +338,26 @@ class DoubleBend:
         # if
         else:
             # arclength setups (before & after double-bend)
-            s1 = tf.boolean_mask( s, s <= s_crit )
-            s2 = tf.boolean_mask( s, s >= s_crit )
+            s1 = torch.masked_select( s, s <= s_crit )
+            s2 = torch.masked_select( s, s >= s_crit )
 
             # kappa_c values
-            kc1 = kc * ((tf.reduce_max( s1 ) - tf.reduce_min( s1 )) / length) ** p
-            kc2 = kc * ((tf.reduce_max( s2 ) - tf.reduce_min( s2 )) / length) ** p
+            kc1 = kc * ((torch.max( s1 ) - torch.min( s1 )) / length) ** p
+            kc2 = kc * ((torch.max( s2 ) - torch.min( s2 )) / length) ** p
 
             # kappa_0 calculations
             k0_1 = kc1 * (1 - s1 / length) ** 2
             k0_2 = -kc2 * (1 - s2 / length) ** 2
             k0_12 = 1 / 2 * (k0_1[ -1 ] + k0_2[ 0 ])
 
-            k0 = tf.concat( (k0_1[ :-1 ], [k0_12], k0_2[ 1: ]), axis=0 )
+            k0 = torch.cat( (k0_1[ :-1 ], [k0_12], k0_2[ 1: ]), dim=0 )
 
             # kappa_0' calculations
             k0prime_1 = -2 * kc1 / length * (1 - s1 / length)
             k0prime_2 = -2 * kc2 / length * (1 - s2 / length)
             k0prime_12 = 1 / 2 * (k0prime_1[ -1 ] + k0prime_2[ 0 ])
 
-            k0prime = tf.concat( (k0prime_1[ :-1 ], [k0prime_12], k0prime_2[ 1: ]), axis=0 )
+            k0prime = torch.cat( (k0prime_1[ :-1 ], [k0prime_12], k0prime_2[ 1: ]), dim=0 )
 
         # else
 

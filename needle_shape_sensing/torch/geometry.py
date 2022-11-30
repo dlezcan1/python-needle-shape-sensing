@@ -1,4 +1,4 @@
-import tensorflow as tf
+import torch
 
 
 def exp2r( w ):
@@ -12,34 +12,25 @@ def exp2r( w ):
 
 
     """
-    Rta = tf.TensorArray(
-            w.dtype,
-            size=w.shape[ 0 ],
-            clear_after_read=False,
-            dynamic_size=False,
-    )
-
+    Rmat = torch.eye( 3, dtype=w.dtype )[ None ].repeat( w.shape[ 0 ], dim=0 )
     W = skew( w )
 
     for i in range( w.shape[ 0 ] ):
-        theta = tf.norm( w[ i ], ord='euclidean' )
+        theta = torch.norm( w[ i ], p='fro' )
         if theta == 0:
-            Rta.write( i, tf.eye( 3, dtype=w.dtype ) )
             continue
 
         # iF
 
         R_i = (
-                tf.eye( 3, dtype=Rta.dtype )
-                + tf.sin( theta ) * W[ i ] / theta
-                + (1 - tf.cos( theta )) * (W[ i ] @ W[ i ]) / theta ** 2
+                torch.eye( 3, dtype=Rmat.dtype )
+                + torch.sin( theta ) * W[ i ] / theta
+                + (1 - torch.cos( theta )) * (W[ i ] @ W[ i ]) / theta ** 2
         )
 
-        Rta.write( i, R_i )
+        Rmat[ i ] = R_i
 
     # for
-
-    Rmat = Rta.stack()
 
     return Rmat
 
@@ -57,26 +48,16 @@ def skew( w ):
 
     """
 
-    W_ta = tf.TensorArray(
-            w.dtype,
-            size=w.shape[ 0 ],
-            clear_after_read=False,
-            dynamic_size=False,
-    )
+    W = torch.zeros( (w.shape[ 0 ], 3, 3), dtype=w.dtype )
 
     for i in range( w.shape[ 0 ] ):
-        W_ta.write(
-                i,
-                [
-                        [ 0, -w[ i, 2 ], w[ i, 1 ] ],
-                        [ w[ i, 2 ], 0, -w[ i, 0 ] ],
-                        [ -w[ i, 1 ], w[ i, 0 ], 0 ],
+        W[ i ] = [
+                [ 0, -w[ i, 2 ], w[ i, 1 ] ],
+                [ w[ i, 2 ], 0, -w[ i, 0 ] ],
+                [ -w[ i, 1 ], w[ i, 0 ], 0 ],
                 ]
-        )
 
     # for
-
-    W = W_ta.stack()
 
     return W
 
