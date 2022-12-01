@@ -12,7 +12,7 @@ def exp2r( w ):
 
 
     """
-    Rmat = torch.eye( 3, dtype=w.dtype )[ None ].repeat( w.shape[ 0 ], dim=0 )
+    Rmat = torch.eye( 3, dtype=w.dtype )[ None ].repeat( w.shape[ 0 ], 1, 1 )
     W = skew( w )
 
     for i in range( w.shape[ 0 ] ):
@@ -51,11 +51,13 @@ def skew( w ):
     W = torch.zeros( (w.shape[ 0 ], 3, 3), dtype=w.dtype )
 
     for i in range( w.shape[ 0 ] ):
-        W[ i ] = [
+        W[ i ] = torch.tensor(
+            [
                 [ 0, -w[ i, 2 ], w[ i, 1 ] ],
                 [ w[ i, 2 ], 0, -w[ i, 0 ] ],
                 [ -w[ i, 1 ], w[ i, 0 ], 0 ],
-                ]
+            ]
+        )
 
     # for
 

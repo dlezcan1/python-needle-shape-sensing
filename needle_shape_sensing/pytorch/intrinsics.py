@@ -10,7 +10,7 @@ from enum import Flag
 
 import torch
 
-from needle_shape_sensing.torch import numerical, geometry
+from needle_shape_sensing.pytorch import numerical, geometry
 
 
 class SHAPETYPE( Flag ):

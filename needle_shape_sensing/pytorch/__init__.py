@@ -1,4 +1,4 @@
-from needle_shape_sensing.torch import (
+from needle_shape_sensing.pytorch import (
     geometry,
     numerical,
     intrinsics,

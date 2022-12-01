@@ -1,6 +1,6 @@
 import torch
 
-from needle_shape_sensing.torch import geometry
+from needle_shape_sensing.pytorch import geometry
 
 
 def integrateEP_w0(
@@ -167,7 +167,7 @@ def simpson_vec_int( f: torch.Tensor, dx: float, seq_mask: torch.Tensor ):
     if num_intervals == 2:
         int_res = dx / 3 * torch.sum(
                 f_masked[ :, 0:3 ]
-                * torch.reshape( [ 1., 4., 1. ], (1, -1, 1) ).type( f_masked.dtype ),
+                * torch.reshape( torch.tensor([ 1., 4., 1. ]), (1, -1, 1) ).type( f_masked.dtype ),
                 dim=1
         )
 
@@ -178,7 +178,7 @@ def simpson_vec_int( f: torch.Tensor, dx: float, seq_mask: torch.Tensor ):
     elif num_intervals == 3:
         int_res = 3 / 8 * dx * torch.sum(
                 f_masked[ :, 0:4 ] 
-                * torch.reshape( [ 1., 3., 3., 1. ], (1, -1, 1) ).type( f_masked.dtype ),
+                * torch.reshape( torch.tensor([ 1., 3., 3., 1. ]), (1, -1, 1) ).type( f_masked.dtype ),
                 dim=1
         )
 
@@ -191,7 +191,7 @@ def simpson_vec_int( f: torch.Tensor, dx: float, seq_mask: torch.Tensor ):
                 int_res +
                 3 / 8 * dx * torch.sum(
                     f_masked[ :, -4: ] 
-                    * torch.reshape( [ 1., 3., 3., 1. ], (1, -1, 1) ).type( f_masked.dtype ),
+                    * torch.reshape( torch.tensor([ 1., 3., 3., 1. ]), (1, -1, 1) ).type( f_masked.dtype ),
                     dim=1
                 )
         )

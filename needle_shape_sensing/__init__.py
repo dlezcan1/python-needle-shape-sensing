@@ -1,8 +1,4 @@
 # sub-packages
-from needle_shape_sensing import (
-    tensorflow,
-    torch
-)
 
 # libraries
 from needle_shape_sensing import (
