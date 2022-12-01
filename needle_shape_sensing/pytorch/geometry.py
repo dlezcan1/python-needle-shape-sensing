@@ -12,25 +12,30 @@ def exp2r( w ):
 
 
     """
-    Rmat = torch.eye( 3, dtype=w.dtype )[ None ].repeat( w.shape[ 0 ], 1, 1 )
     W = skew( w )
 
+    Rmat_list = []
     for i in range( w.shape[ 0 ] ):
         theta = torch.norm( w[ i ], p='fro' )
         if theta == 0:
+            Rmat_list.append(torch.eye(3, dtype=w.dtype))
             continue
 
         # iF
 
         R_i = (
-                torch.eye( 3, dtype=Rmat.dtype )
+                torch.eye( 3, dtype=w.dtype )
                 + torch.sin( theta ) * W[ i ] / theta
                 + (1 - torch.cos( theta )) * (W[ i ] @ W[ i ]) / theta ** 2
         )
-
-        Rmat[ i ] = R_i
+        Rmat_list.append(R_i)
 
     # for
+
+    Rmat = torch.cat(
+            [ R[None] for R in Rmat_list ],
+            dim=0
+    )
 
     return Rmat
 
@@ -47,19 +52,22 @@ def skew( w ):
         W - (N, 3, 3) skew-symmetric matrix
 
     """
-
-    W = torch.zeros( (w.shape[ 0 ], 3, 3), dtype=w.dtype )
-
+    W_list = []
     for i in range( w.shape[ 0 ] ):
-        W[ i ] = torch.tensor(
+        W_list.append( torch.tensor(
             [
                 [ 0, -w[ i, 2 ], w[ i, 1 ] ],
                 [ w[ i, 2 ], 0, -w[ i, 0 ] ],
                 [ -w[ i, 1 ], w[ i, 0 ], 0 ],
             ]
-        )
+        ))
 
     # for
+
+    W = torch.cat(
+            [W_i[None] for W_i in W_list],
+            dim=0
+    )
 
     return W
 

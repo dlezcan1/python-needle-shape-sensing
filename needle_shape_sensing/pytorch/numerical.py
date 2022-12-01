@@ -47,16 +47,15 @@ def integrateEP_w0(
     ).type(w0.dtype)
 
     # prepare tensors
-    wv = torch.zeros( (N, M, 3), dtype=w0.dtype, )
-    wv[:, 0] = w_init
+    wv_list = [w_init]
 
     for idx in range( 1, M ):
         seq_mask_idx = torch.unsqueeze( seq_mask[ :, idx:idx + 1 ], dim=-1 )
 
         # unpack veriables
-        w0_im1 = torch.unsqueeze( w0[ :, idx - 1 ], dim=-1 )
-        w0prime_im1 = torch.unsqueeze( w0prime[ :, idx - 1 ], dim=-1 )
-        wv_im1 = torch.unsqueeze( wv[ :, idx - 1 ], dim=-1 )
+        w0_im1 = torch.unsqueeze( w0[ :, idx - 1 ], dim=-1 ) # (N, 3, 1)
+        w0prime_im1 = torch.unsqueeze( w0prime[ :, idx - 1 ], dim=-1 ) # (N, 3, 1)
+        wv_im1 = torch.unsqueeze( wv_list[idx - 1], dim=-1 ) # (N, 3, 1)
         scale = 1 if idx == 1 else 2
 
         wv_i = (
@@ -66,11 +65,14 @@ def integrateEP_w0(
                        torch.squeeze( B_T @ (wv_im1 - w0_im1), dim=-1 )
                        )[ :, :, None ]
                )
-               ) * seq_mask_idx.type( wv.dtype )
+               ) * seq_mask_idx.type( w0.dtype )
 
-        wv[:, idx] = torch.squeeze( wv_i, dim=-1 )
+        # wv[:, idx] += torch.squeeze( wv_i, dim=-1 )
+        wv_list.append(torch.squeeze(wv_i, dim=-1))
 
     # for
+
+    wv = torch.cat([wv_i[:, None] for wv_i in wv_list], dim=1)
 
     if wv_only:
         pmat, Rmat = None, None
@@ -100,39 +102,49 @@ def integratePose_wv(
     """
     N, M = wv.shape[ 0:2 ]
 
-    pmat = torch.zeros( (N, M, 3), dtype=wv.dtype )  # (N, M, 3)
-    Rmat = torch.eye(3, dtype=wv.dtype)[None, None].tile((N, M, 1, 1))  # (N, M, 3, 3)
-
     # initial conditions
-    Rmat[:, 0] = R_init.type(Rmat.dtype)
+    pmat_list = [torch.zeros((N, 3), dtype=wv.dtype)]
+    Rmat_list = [R_init[None].tile((N, 1, 1)).type(wv.dtype)]
 
     for idx in range( 1, M ):
         # unpack vars
         seq_mask_i = seq_mask[ :, idx ]  # (N, )
-        Rmat_im1 = Rmat[:, idx - 1 ]  # (N, 3, 3)
-        pmat_im1 = pmat[:, idx - 1 ]  # (N, 3)
+        Rmat_im1 = Rmat_list[idx-1]   # (N, 3, 3)
+        pmat_im1 = pmat_list[idx - 1] # (N, 3)
 
         # integrate
         Rmat_i = Rmat_im1 @ (
                 geometry.exp2r(
                         ds * torch.mean( wv[ :, idx - 1:idx ], dim=1 )
                         ) * seq_mask_i[ :, None, None ].type( wv.dtype )
-        )
+        ).type(Rmat_im1.dtype)
 
         # add results for Rmat
-        Rmat[:, idx] = Rmat_i
+        Rmat_list.append(Rmat_i)
 
         if idx == 1:
             pmat_i = pmat_im1 + Rmat_i[ :, :, 2 ] * ds
 
         else:
-            e3vec = Rmat[ :, :idx + 1, :, 2 ]  # grab z-directions
+            e3vec = torch.cat(
+                    [ R[:, None] for R in Rmat_list[0:idx + 1] ],
+                    dim=1
+            )[:, :, :, 2]  # grab z-directions
             pmat_i = simpson_vec_int( e3vec, ds, seq_mask[ :, :idx + 1 ] )
 
         # add results for pmat
-        pmat[:, idx] =  pmat_i
+        pmat_list.append(pmat_i)
 
     # for
+
+    pmat = torch.cat(
+            [p[:, None] for p in pmat_list],
+            dim=1,
+    )
+    Rmat = torch.cat(
+            [R[:, None] for R in Rmat_list],
+            dim=1
+    )
 
     return pmat, Rmat, seq_mask
 
@@ -177,7 +189,7 @@ def simpson_vec_int( f: torch.Tensor, dx: float, seq_mask: torch.Tensor ):
 
     elif num_intervals == 3:
         int_res = 3 / 8 * dx * torch.sum(
-                f_masked[ :, 0:4 ] 
+                f_masked[ :, 0:4 ]
                 * torch.reshape( torch.tensor([ 1., 3., 3., 1. ]), (1, -1, 1) ).type( f_masked.dtype ),
                 dim=1
         )
@@ -190,7 +202,7 @@ def simpson_vec_int( f: torch.Tensor, dx: float, seq_mask: torch.Tensor ):
         int_res = (
                 int_res +
                 3 / 8 * dx * torch.sum(
-                    f_masked[ :, -4: ] 
+                    f_masked[ :, -4: ]
                     * torch.reshape( torch.tensor([ 1., 3., 3., 1. ]), (1, -1, 1) ).type( f_masked.dtype ),
                     dim=1
                 )

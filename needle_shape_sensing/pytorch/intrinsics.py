@@ -60,7 +60,7 @@ class SHAPETYPE( Flag ):
         """ Get omega_o intrinsic 3D curvature function """
         k0 = self.k0( *args, **kwargs )
         if callable( k0 ):
-            w0 = lambda s: torch.Tensor( [ k0( s ), 0, 0 ], dtype=k0( s ).dtype )
+            w0 = lambda s: torch.tensor( [ k0( s ), 0, 0 ], dtype=k0( s ).dtype )
 
         # if
         else:
