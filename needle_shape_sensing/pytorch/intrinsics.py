@@ -350,14 +350,28 @@ class DoubleBend:
             k0_2 = -kc2 * (1 - s2 / length) ** 2
             k0_12 = 1 / 2 * (k0_1[ -1 ] + k0_2[ 0 ])
 
-            k0 = torch.cat( (k0_1[ :-1 ], [k0_12], k0_2[ 1: ]), dim=0 )
+            k0 = torch.cat(
+                    (
+                            k0_1[ :-1 ],
+                            torch.tensor( [ k0_12 ], dtype=k0_1.dtype ),
+                            k0_2[ 1: ]
+                    ),
+                    dim=0
+            )
 
             # kappa_0' calculations
             k0prime_1 = -2 * kc1 / length * (1 - s1 / length)
             k0prime_2 = -2 * kc2 / length * (1 - s2 / length)
             k0prime_12 = 1 / 2 * (k0prime_1[ -1 ] + k0prime_2[ 0 ])
 
-            k0prime = torch.cat( (k0prime_1[ :-1 ], [k0prime_12], k0prime_2[ 1: ]), dim=0 )
+            k0prime = torch.cat(
+                    (
+                            k0prime_1[ :-1 ],
+                            torch.tensor( [ k0prime_12 ], dtype=k0_1.dtype ),
+                            k0prime_2[ 1: ]
+                    ),
+                    dim=0
+            )
 
         # else
 
