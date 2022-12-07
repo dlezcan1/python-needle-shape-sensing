@@ -103,8 +103,8 @@ def integratePose_wv(
     N, M = wv.shape[ 0:2 ]
 
     # initial conditions
-    pmat_list = [torch.zeros((N, 3), dtype=wv.dtype)]
-    Rmat_list = [R_init[None].tile((N, 1, 1)).type(wv.dtype)]
+    pmat_list = [torch.zeros((N, 3), dtype=wv.dtype, device=wv.device)]
+    Rmat_list = [R_init[None].tile((N, 1, 1)).type(wv.dtype).to(wv.device)]
 
     for idx in range( 1, M ):
         # unpack vars
@@ -175,11 +175,11 @@ def simpson_vec_int( f: torch.Tensor, dx: float, seq_mask: torch.Tensor ):
     f_masked = f * seq_mask[ :, :, None ].type( f.dtype )
 
     # perform the integration
-    int_res = torch.zeros( (f.shape[ 0 ], f.shape[ 2 ]), dtype=f.dtype )
+    int_res = torch.zeros( (f.shape[ 0 ], f.shape[ 2 ]), dtype=f.dtype, device=f.device )
     if num_intervals == 2:
         int_res = dx / 3 * torch.sum(
                 f_masked[ :, 0:3 ]
-                * torch.reshape( torch.tensor([ 1., 4., 1. ]), (1, -1, 1) ).type( f_masked.dtype ),
+                * torch.reshape( torch.tensor([ 1., 4., 1. ], device=f.device), (1, -1, 1) ).type( f_masked.dtype ),
                 dim=1
         )
 
@@ -190,7 +190,7 @@ def simpson_vec_int( f: torch.Tensor, dx: float, seq_mask: torch.Tensor ):
     elif num_intervals == 3:
         int_res = 3 / 8 * dx * torch.sum(
                 f_masked[ :, 0:4 ]
-                * torch.reshape( torch.tensor([ 1., 3., 3., 1. ]), (1, -1, 1) ).type( f_masked.dtype ),
+                * torch.reshape( torch.tensor([ 1., 3., 3., 1. ], device=f.device), (1, -1, 1) ).type( f_masked.dtype ),
                 dim=1
         )
 
@@ -203,7 +203,7 @@ def simpson_vec_int( f: torch.Tensor, dx: float, seq_mask: torch.Tensor ):
                 int_res +
                 3 / 8 * dx * torch.sum(
                     f_masked[ :, -4: ]
-                    * torch.reshape( torch.tensor([ 1., 3., 3., 1. ]), (1, -1, 1) ).type( f_masked.dtype ),
+                    * torch.reshape( torch.tensor([ 1., 3., 3., 1. ], device=f.device), (1, -1, 1) ).type( f_masked.dtype ),
                     dim=1
                 )
         )
