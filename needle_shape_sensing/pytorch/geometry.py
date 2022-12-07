@@ -18,13 +18,13 @@ def exp2r( w ):
     for i in range( w.shape[ 0 ] ):
         theta = torch.norm( w[ i ], p='fro' )
         if theta == 0:
-            Rmat_list.append(torch.eye(3, dtype=w.dtype))
+            Rmat_list.append(torch.eye(3, dtype=w.dtype, device=w.device))
             continue
 
         # iF
 
         R_i = (
-                torch.eye( 3, dtype=w.dtype )
+                torch.eye( 3, dtype=w.dtype, device=w.device )
                 + torch.sin( theta ) * W[ i ] / theta
                 + (1 - torch.cos( theta )) * (W[ i ] @ W[ i ]) / theta ** 2
         )
@@ -59,7 +59,8 @@ def skew( w ):
                 [ 0, -w[ i, 2 ], w[ i, 1 ] ],
                 [ w[ i, 2 ], 0, -w[ i, 0 ] ],
                 [ -w[ i, 1 ], w[ i, 0 ], 0 ],
-            ]
+            ],
+            device=w.device,
         ))
 
     # for
