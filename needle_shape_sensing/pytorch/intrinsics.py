@@ -100,8 +100,9 @@ class SingleBend:
 
         # if
         else:
-            k0 = kc * (1 - s / length) ** 2
-            k0prime = -2 * kc / length * (1 - s / length)
+            seq_mask = s <= length
+            k0       = (kc * (1 - s / length) ** 2) * seq_mask
+            k0prime  = (-2 * kc / length * (1 - s / length)) * seq_mask
 
         # else
         return k0, k0prime
@@ -161,19 +162,22 @@ class SingleBend:
         # if
         else:
             # first layer processing
-            s_1 = torch.masked_select( s, s <= s_crit )
+            s_1 = s  # torch.masked_select( s, s <= s_crit )
             k0_1 = kc_1 * ((s_crit - s_1) / length) ** 2 + kc_2 * (1 - s_crit / length) * (
                     1 + s_crit / length - 2 * s_1 / length)
             k0prime_1 = -2 * kc_1 / length ** 2 * (s_crit - s_1) - 2 * kc_2 / length * (1 - s_crit / length)
 
             # second layer processing
-            s_2 = torch.masked_select( s, s > s_crit )
+            s_2 = s  # torch.masked_select( s, s > s_crit )
             k0_2 = kc_2 * (1 - s_2 / length) ** 2
             k0prime_2 = -2 * kc_2 / length * (1 - s_2 / length)
 
             # set the return values
-            k0 = torch.cat( (k0_1, k0_2), dim=0 )
-            k0prime = torch.cat( (k0prime_1, k0prime_2), dim=0 )
+            # k0 = torch.cat( (k0_1, k0_2), dim=0 )
+            # k0prime = torch.cat( (k0prime_1, k0prime_2), dim=0 )
+            seq_mask = s < length
+            k0       = (k0_1 * (s <= s_crit) + k0_2 * (s > s_crit)) * seq_mask
+            k0prime  = (k0prime_1 * (s <= s_crit) + k0prime_2 * (s > s_crit)) * seq_mask
 
         # else
 
@@ -324,13 +328,13 @@ class DoubleBend:
 
             def k0prime( s ):
                 if s < s_crit:
-                    k0prime_s = -2 * kc1 / length * (1 - s1 / length)
+                    k0prime_s = -2 * kc1 / length * (1 - s / length)
 
                 elif s == s_crit:
                     k0prime_s = -(kc1 - kc2) * (1 - s / length)
 
                 else:
-                    k0prime_s = -2 * kc2 / length * (1 - s2 / length)
+                    k0prime_s = -2 * kc2 / length * (1 - s / length)
 
                 return k0prime_s
 
@@ -338,40 +342,44 @@ class DoubleBend:
         # if
         else:
             # arclength setups (before & after double-bend)
-            s1 = torch.masked_select( s, s <= s_crit )
-            s2 = torch.masked_select( s, s >= s_crit )
+            # s1 = s # torch.masked_select( s, s <= s_crit )
+            # s2 = s # torch.masked_select( s, s >= s_crit )
 
             # kappa_c values
-            kc1 = kc * ((torch.max( s1 ) - torch.min( s1 )) / length) ** p
-            kc2 = kc * ((torch.max( s2 ) - torch.min( s2 )) / length) ** p
+            kc1 = kc * ((torch.max( s[ s <= s_crit ] ) - torch.min( s[ s <= s_crit ] )) / length) ** p
+            kc2 = kc * ((torch.max( s[ s >= s_crit ] ) - torch.min( s[ s >= s_crit ] )) / length) ** p
 
             # kappa_0 calculations
-            k0_1 = kc1 * (1 - s1 / length) ** 2
-            k0_2 = -kc2 * (1 - s2 / length) ** 2
-            k0_12 = 1 / 2 * (k0_1[ -1 ] + k0_2[ 0 ])
-
-            k0 = torch.cat(
-                    (
-                            k0_1[ :-1 ],
-                            torch.tensor( [ k0_12 ], dtype=k0_1.dtype ),
-                            k0_2[ 1: ]
-                    ),
-                    dim=0
-            )
+            k0_1 = kc1 * (1 - s / length) ** 2
+            k0_2 = -kc2 * (1 - s / length) ** 2
+            k0_12 = 1 / 2 * (k0_1 + k0_2)
 
             # kappa_0' calculations
-            k0prime_1 = -2 * kc1 / length * (1 - s1 / length)
-            k0prime_2 = -2 * kc2 / length * (1 - s2 / length)
+            k0prime_1 = -2 * kc1 / length * (1 - s / length)
+            k0prime_2 = -2 * kc2 / length * (1 - s / length)
             k0prime_12 = 1 / 2 * (k0prime_1[ -1 ] + k0prime_2[ 0 ])
 
-            k0prime = torch.cat(
-                    (
-                            k0prime_1[ :-1 ],
-                            torch.tensor( [ k0prime_12 ], dtype=k0_1.dtype ),
-                            k0prime_2[ 1: ]
-                    ),
-                    dim=0
-            )
+            # concatenation
+            seq_mask = s < length
+            k0       = (k0_1 * (s < s_crit) + k0_2 * (s > s_crit) + k0_12 * (s == s_crit)) * seq_mask
+            k0prime  = (k0prime_1 * (s < s_crit) + k0prime_2 * (s > s_crit) + k0prime_12 * (s == s_crit)) * seq_mask
+
+            # k0 = torch.cat(
+            #         (
+            #                 k0_1[ :-1 ],
+            #                 torch.tensor( [ k0_12 ], dtype=k0_1.dtype, device=k0_1.device ),
+            #                 k0_2[ 1: ]
+            #         ),
+            #         dim=0
+            # )
+            # k0prime = torch.cat(
+            #         (
+            #                 k0prime_1[ :-1 ],
+            #                 torch.tensor( [ k0prime_12 ], dtype=k0_1.dtype, device=k0prime_1.device ),
+            #                 k0prime_2[ 1: ]
+            #         ),
+            #         dim=0
+            # )
 
         # else
 

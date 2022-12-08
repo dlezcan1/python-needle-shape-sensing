@@ -231,10 +231,105 @@ def test_loss():
 
 # test_loss
 
+def test_tensor_ops():
+    print("Testing tensor intrinsics")
+
+    # data setup
+    N = 200
+
+    kc1 = torch.rand(N) * 0.005
+    kc2 = kc1
+    winit = torch.rand(N, 3) * 0.005
+
+    L = torch.round((torch.rand_like(kc1) * 165))
+
+    ds = 0.5
+    s = torch.arange(0, L.max() + ds, ds)
+    s_crit = 65
+    M = s.shape[0]
+
+    B = torch.diag(torch.arange(1, 4, dtype=kc1.dtype))
+
+    # tensor-ify data
+    kc1_T = kc1.unsqueeze(dim=1).repeat(1, M) # (N, M)
+    kc2_T = kc2.unsqueeze(dim=1).repeat(1, M) # (N, M)
+    L_T   = L.unsqueeze(dim=1).repeat(1, M)   # (N, M)
+    L2_T  = torch.clone(L_T)                  # (N, M)
+    L2_T[L2_T < s_crit] = s_crit + 10
+    s_T   = s.unsqueeze(dim=0).repeat(N, 1)   # (N, M)
+
+    print( f"\tN = {N}, M = {M}" )
+
+    # singlebend 1 layer
+    print("\tTesting single-bend 1 layer intrinsics")
+    k0, k0prime = nss_torch.intrinsics.SingleBend.k0_1layer(
+            s_T,
+            kc1_T,
+            L_T,
+            return_callable=False,
+    )
+    print(f"\t\tk0.shape = {k0.shape}, k0'.shape = {k0prime.shape}")
+
+    # singlebend 2 layer
+    print( "\tTesting single-bend 2 layer intrinsics" )
+    k0, k0prime = nss_torch.intrinsics.SingleBend.k0_2layer(
+            s_T,
+            kc1_T,
+            kc2_T,
+            L2_T,
+            s_crit=s_crit,
+            return_callable=False,
+    )
+    print( f"\t\tk0.shape = {k0.shape}, k0'.shape = {k0prime.shape}" )
+
+
+    # doublebend 1 layer
+    print( "\tTesting double-bend 1 layer intrinsics" )
+    k0, k0prime = nss_torch.intrinsics.DoubleBend.k0_1layer(
+            s_T,
+            kc1_T,
+            L2_T,
+            s_crit=s_crit,
+            return_callable=False,
+    )
+    print( f"\t\tk0.shape = {k0.shape}, k0'.shape = {k0prime.shape}" )
+
+    # test shape-sensing
+    print( "\tTesting integrateEP_w0" )
+    w0 = torch.cat(
+            (
+                k0.unsqueeze(dim=-1),
+                torch.zeros((N, M, 2), dtype=k0.dtype),
+            ),
+            dim=-1
+    )
+    w0prime = torch.cat(
+            (
+                k0prime.unsqueeze(dim=-1),
+                torch.zeros((N, M, 2), dtype=k0prime.dtype),
+            ),
+            dim=-1
+    )
+    seq_mask_og = (s_T <= L_T)
+    pmat, Rmat, wv, seq_mask = nss_torch.numerical.integrateEP_w0(
+            winit,
+            w0,
+            w0prime,
+            B,
+            seq_mask_og,
+            ds=ds,
+    )
+
+    print(f"\t\tpmat.shape = {pmat.shape}, Rmat.shape = {Rmat.shape}")
+    print("All seq mask line up:", torch.all(seq_mask == seq_mask_og))
+
+# test_tensor_ops
+
 
 def main():
     test_fns = [
-            test_loss,
+            # test_loss,
+            test_tensor_ops,
     ]
 
     for fn in test_fns:
