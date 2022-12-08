@@ -12,29 +12,16 @@ def exp2r( w ):
 
 
     """
-    W = skew( w )
+    # compute norms and normalized omega vectors
+    thetas = torch.norm( w, p='fro', dim=1, keepdim=True )
+    norms = thetas * (thetas != 0) + torch.ones_like( thetas ) * (thetas == 0)
+    w_norm = w / norms
+    W_norm = skew( w_norm )
 
-    Rmat_list = []
-    for i in range( w.shape[ 0 ] ):
-        theta = torch.norm( w[ i ], p='fro' )
-        if theta == 0:
-            Rmat_list.append(torch.eye(3, dtype=w.dtype, device=w.device))
-            continue
-
-        # iF
-
-        R_i = (
-                torch.eye( 3, dtype=w.dtype, device=w.device )
-                + torch.sin( theta ) * W[ i ] / theta
-                + (1 - torch.cos( theta )) * (W[ i ] @ W[ i ]) / theta ** 2
-        )
-        Rmat_list.append(R_i)
-
-    # for
-
-    Rmat = torch.cat(
-            [ R[None] for R in Rmat_list ],
-            dim=0
+    Rmat = (
+            torch.eye( 3, dtype=w.dtype, device=w.device )[ None ].repeat( w.shape[ 0 ], 1, 1 )
+            + torch.sin( thetas.unsqueeze( dim=-1 ) ) * W_norm
+            + (1 - torch.cos( thetas.unsqueeze( dim=-1 ) )) * (W_norm @ W_norm)
     )
 
     return Rmat
@@ -52,24 +39,16 @@ def skew( w ):
         W - (N, 3, 3) skew-symmetric matrix
 
     """
-    W_list = []
-    for i in range( w.shape[ 0 ] ):
-        W_list.append( torch.tensor(
-            [
-                [ 0, -w[ i, 2 ], w[ i, 1 ] ],
-                [ w[ i, 2 ], 0, -w[ i, 0 ] ],
-                [ -w[ i, 1 ], w[ i, 0 ], 0 ],
-            ],
-            device=w.device,
-        ))
+    zeros = torch.zeros_like( w[ :, 0:1 ], dtype=w.dtype, device=w.device )
+    W_half = torch.cat(
+            (
+                    zeros, -w[ :, 2:3 ], w[ :, 1:2 ],
+                    zeros, zeros, -w[ :, 0:1 ],
+                    zeros, zeros, zeros,
+            ),
+            dim=1
+    ).reshape( -1, 3, 3 )
 
-    # for
-
-    W = torch.cat(
-            [W_i[None] for W_i in W_list],
-            dim=0
-    )
-
-    return W
+    return W_half - W_half.transpose( 1, 2 )
 
 # skew
