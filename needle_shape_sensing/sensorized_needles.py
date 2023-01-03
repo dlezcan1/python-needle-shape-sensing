@@ -171,7 +171,7 @@ class Needle( object ):
                 'length'       : self.length,
                 'diameter'     : self.diameter,
                 'Emod'         : self.Emod,
-                'pratio'       : self.pratio
+                'pratio'       : self.pratio,
         }
 
     # to_dict
@@ -187,7 +187,7 @@ class FBGNeedle( Needle ):
 
     def __init__(
             self, length: float, serial_number: str, num_channels: int, sensor_location=None,
-            calibration_mats=None, weights=None, **kwargs
+            calibration_mats=None, weights=None, ref_wavelengths=None, **kwargs
     ):
         """
         Constructor
@@ -232,7 +232,11 @@ class FBGNeedle( Needle ):
         # assignments
         self.cal_matrices = calibration_mats
         self.weights = weights
-        self.ref_wavelengths = -np.ones( self.num_channels * self.num_activeAreas )  # reference wavelengths
+        self.ref_wavelengths = (
+            -np.ones( self.num_channels * self.num_activeAreas )
+            if ref_wavelengths is None else
+            ref_wavelengths
+        ) # reference wavelengths
 
         # (static/class) methods -> instance methods
         self.calculate_length_measured = self.__calculate_length_measured
@@ -759,6 +763,12 @@ class FBGNeedle( Needle ):
 
         # else
 
+        ref_wavelengths = None
+        if "Reference Wavelengths" in data.keys():
+            ref_wavelengths = np.asarray( data[ 'Reference Wavelengths' ], dtype=np.float )
+
+        # if
+
         # needle mechanical properties
         diameter = data.get( 'diameter', None )
         Emod = data.get( 'Emod', None )
@@ -766,8 +776,16 @@ class FBGNeedle( Needle ):
 
         # instantiate the FBGNeedle class object
         fbg_needle = FBGNeedle(
-                data[ 'length' ], data[ 'serial number' ], data[ '# channels' ], sensor_locations,
-                cal_mats, weights, diameter=diameter, Emod=Emod, pratio=pratio
+                data[ 'length' ],
+                data[ 'serial number' ],
+                data[ '# channels' ],
+                sensor_locations,
+                cal_mats,
+                weights,
+                diameter=diameter,
+                Emod=Emod,
+                pratio=pratio,
+                ref_wavelengths=ref_wavelengths,
         )
 
         # return the instantiation
@@ -783,36 +801,6 @@ class FBGNeedle( Needle ):
             - outfile: str, the output json file to be saved.
         
         """
-        # place the saved data into the json file
-        data = {
-                "serial number" : self.serial_number, "length": self.length, "# channels": self.num_channels,
-                "# active areas": self.num_activeAreas
-        }  # initialize the json dictionary
-
-        if self.sensor_location:
-            data[ "Sensor Locations" ] = { }
-            for i, l in enumerate( self.sensor_location, 1 ):
-                data[ "Sensor Locations" ][ str( i ) ] = l
-
-            # for
-        # if
-
-        if self.cal_matrices:
-            data[ "Calibration Matrices" ] = { }
-            for k, cal_mat in self.cal_matrices.items():
-                data[ "Calibration Matrices" ][ k ] = cal_mat.tolist()
-
-            # for
-        # if
-
-        if self.weights:
-            data[ 'weights' ] = { }
-            for k, weight in self.weights.items():
-                data[ 'weights' ][ k ] = weight
-
-            # for
-        # if
-
         data = self.to_dict()
 
         # write the data
@@ -826,7 +814,8 @@ class FBGNeedle( Needle ):
     def to_dict( self ) -> dict:
         """ Dictionary the values here """
         data = super().to_dict()
-        data[ "# channels" ] = self.num_channels
+
+        data[ "# channels" ]     = self.num_channels
         data[ "# active areas" ] = self.num_activeAreas
 
         if self.sensor_location:
@@ -851,6 +840,11 @@ class FBGNeedle( Needle ):
                 data[ 'weights' ][ k ] = weight
 
             # for
+        # if
+
+        if np.all( self.ref_wavelengths > 0 ):
+            data[ 'Reference Wavelengths' ] = self.ref_wavelengths.tolist()
+
         # if
 
         return data
@@ -953,7 +947,7 @@ class MCFNeedle( FBGNeedle ):
         """ Return the Central core assignments mask """
         ch_assignments = MCFNeedle.assignments_ch( num_channels, num_active_areas )
 
-        return [ch == central_core_ch for ch in ch_assignments]
+        return [ ch == central_core_ch for ch in ch_assignments ]
 
     # assignments_centralcore
 
@@ -992,19 +986,19 @@ class MCFNeedle( FBGNeedle ):
         num_dims = proc_signals.ndim
         proc_signals_Tcomp = proc_signals.copy()
 
-        for aa_i in range(1, self.num_activeAreas + 1):
+        for aa_i in range( 1, self.num_activeAreas + 1 ):
             aa_i_mask = (aa_assignments == aa_i)
             if num_dims == 1:
-                proc_signals_Tcomp[aa_i_mask] -= proc_signals[
+                proc_signals_Tcomp[ aa_i_mask ] -= proc_signals[
                     aa_i_mask & cc_assignments
-                ]
+                    ]
 
             # if
             elif num_dims == 2:
-                proc_signals_Tcomp[:, aa_i_mask] -= proc_signals[
-                     :,
-                     aa_i_mask & cc_assignments
-                ]
+                proc_signals_Tcomp[ :, aa_i_mask ] -= proc_signals[
+                                                      :,
+                                                      aa_i_mask & cc_assignments
+                                                      ]
 
             # elif
 

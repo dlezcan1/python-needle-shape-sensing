@@ -9,8 +9,14 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
             calibration_mats=None, weights=None, ds: float = 0.5, current_depth: float = 0,
             optim_options: dict = None, cts_integration: bool = False, **kwargs ):
         super().__init__(
-                length, serial_number, num_channels, sensor_location=sensor_location,
-                calibration_mats=calibration_mats, weights=weights, **kwargs )
+                length,
+                serial_number,
+                num_channels,
+                sensor_location=sensor_location,
+                calibration_mats=calibration_mats,
+                weights=weights,
+                **kwargs
+        )
 
         # current insertion parameters
         self.current_depth = current_depth
@@ -73,13 +79,18 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
             :return: ShapeSensingFBGNeedle with the current FBGNeedle
         """
         return ShapeSensingFBGNeedle(
-                fbgneedle.length, fbgneedle.serial_number, fbgneedle.num_channels,
+                fbgneedle.length,
+                fbgneedle.serial_number,
+                fbgneedle.num_channels,
                 sensor_location=fbgneedle.sensor_location,
                 calibration_mats=fbgneedle.cal_matrices,
                 weights=fbgneedle.weights,
-                diameter=fbgneedle.diameter, Emod=fbgneedle.Emod,
+                diameter=fbgneedle.diameter,
+                Emod=fbgneedle.Emod,
                 pratio=fbgneedle.pratio,
-                **kwargs )
+                ref_wavelengths=fbgneedle.ref_wavelengths,
+                **kwargs
+        )
 
     # from_FBGNeedle
 
