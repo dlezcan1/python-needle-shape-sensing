@@ -130,10 +130,42 @@ def test_simpson_vec_int(data_file):
     py_res = numerical.simpson_vec_int(X, dx)
     print(py_res - ml_res)
 
+def test_ideal_insertion():
+    print("Testing ideal insertion shapes")
+
+    kc = 0.000282
+    winit = np.array([kc, 0, 0])
+    winit = np.array([
+        0.000242,
+        -6.32e-4,
+        -1.0e-5,
+    ])
+    L = 200
+    ds = 0.5
+    s = np.arange(0, L+ds, ds)
+    B = np.diag((1, 1, 2)) * 1e5
+
+    k0, k0prime = intrinsics.SingleBend.k0_1layer(s, kc, L, return_callable=False)
+    w0 = np.hstack((k0[:, np.newaxis], np.zeros((k0.shape[0], 2))))
+    w0prime = np.hstack( (k0prime[ :, np.newaxis ], np.zeros( (k0.shape[ 0 ], 2) )) )
+
+    print(k0.shape, k0prime.shape)
+    print(w0.shape, w0prime.shape)
+
+    pmat, Rmat, wv = numerical.integrateEP_w0(
+            winit,
+            w0,
+            w0prime,
+            B,
+            s0=0,
+            ds=ds,
+    )
+    print(pmat[-1])
 
 
 if __name__ == "__main__":
-    check_numerical_integrations("data/shape_stuff.json")
+    # check_numerical_integrations("data/shape_stuff.json")
     # test_simpson_vec_int("data/simpson_vec_int.json")
+    test_ideal_insertion()
 
 # if __main__

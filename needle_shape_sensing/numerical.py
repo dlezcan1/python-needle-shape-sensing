@@ -428,10 +428,10 @@ def integrateEP_w0(
         Rz = geometry.rotz( needle_rotations[ idx ] )
         if idx == 1:
             wv[ idx ] = w_init + ds * (
-                    w0prime[ 0 ] - Binv @ np.cross( wv[ 0 ], B @ (w_init - w0[ 0 ]) ))
+                    w0prime[ 0 ] - Binv @ np.cross( w_init, B @ (w_init - w0[ 0 ]) ))
 
         else:
-            wv[ idx ] = wv[ idx - 1 ] + 2 * ds * (
+            wv[ idx ] = wv[ idx - 2 ] + 2 * ds * (
                     w0prime[ idx - 1 ] - Binv @ np.cross(
                     wv[ idx - 1 ], B @ (wv[ idx - 1 ] - w0[ idx - 1 ]) ))
 
