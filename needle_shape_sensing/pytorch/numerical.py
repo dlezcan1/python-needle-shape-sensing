@@ -53,21 +53,34 @@ def integrateEP_w0(
         seq_mask_idx = torch.unsqueeze( seq_mask[ :, idx:idx + 1 ], dim=-1 )
 
         # unpack veriables
-        w0_im1 = torch.unsqueeze( w0[ :, idx - 1 ], dim=-1 ) # (N, 3, 1)
+        w0_im1      = torch.unsqueeze( w0[ :, idx - 1 ], dim=-1 ) # (N, 3, 1)
         w0prime_im1 = torch.unsqueeze( w0prime[ :, idx - 1 ], dim=-1 ) # (N, 3, 1)
-        wv_im1 = torch.unsqueeze( wv_list[idx - 1], dim=-1 ) # (N, 3, 1)
-        scale = 1 if idx == 1 else 2
+        wv_im1      = torch.unsqueeze( wv_list[ idx - 1 ], dim=-1 ) # (N, 3, 1)
 
-        wv_i = (
-                       wv_im1 + scale * ds * (
-                       w0prime_im1 - Binv_T @ torch.linalg.cross(
-                       torch.squeeze( wv_im1, dim=-1 ),
-                       torch.squeeze( B_T @ (wv_im1 - w0_im1), dim=-1 )
-                       )[ :, :, None ]
-               )
-               ) * seq_mask_idx.type( w0.dtype )
+        if idx == 1:
+            wv_i = (
+                        wv_im1 + 1 * ds * (
+                        w0prime_im1 - Binv_T @ torch.linalg.cross(
+                            torch.squeeze( wv_im1, dim=-1 ),
+                            torch.squeeze( B_T @ (wv_im1 - w0_im1), dim=-1 )
+                        )[ :, :, None ]
+                )
+                ) * seq_mask_idx.type( w0.dtype )
+            
+        # if
+        else:
+            wv_im2 = torch.unsqueeze( wv_list[ idx - 2 ], dim=-1 ) # (N, 3, 1)
+            wv_i   = (
+                        wv_im2 + 2 * ds * (
+                        w0prime_im1 - Binv_T @ torch.linalg.cross(
+                            torch.squeeze( wv_im1, dim=-1 ),
+                            torch.squeeze( B_T @ (wv_im1 - w0_im1), dim=-1 )
+                        )[ :, :, None ]
+                )
+                ) * seq_mask_idx.type( w0.dtype )
+            
+        # else
 
-        # wv[:, idx] += torch.squeeze( wv_i, dim=-1 )
         wv_list.append(torch.squeeze(wv_i, dim=-1))
 
     # for

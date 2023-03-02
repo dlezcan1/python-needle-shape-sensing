@@ -64,19 +64,31 @@ def integrateEP_w0(
         seq_mask_idx = tf.expand_dims( seq_mask[ :, idx:idx + 1 ], axis=-1 )
 
         # unpack veriables
-        w0_im1 = tf.expand_dims( w0[ :, idx - 1 ], axis=-1 )
+        w0_im1      = tf.expand_dims( w0[ :, idx - 1 ], axis=-1 )
         w0prime_im1 = tf.expand_dims( w0prime[ :, idx - 1 ], axis=-1 )
-        wv_im1 = tf.expand_dims( wv.read( idx - 1 ), axis=-1 )
-        scale = 1 if idx == 1 else 2
+        wv_im1      = tf.expand_dims( wv.read( idx - 1 ), axis=-1 )
 
-        wv_i = (
-                   wv_im1 + scale * ds * (
-                        w0prime_im1 - Binv_T @ tf.linalg.cross(
-                        tf.squeeze(wv_im1, axis=-1),
-                        tf.squeeze(B_T @ (wv_im1 - w0_im1), axis=-1)
-               )[:, :, tf.newaxis]
-               )
-               ) * tf.cast( seq_mask_idx, dtype=wv.dtype )
+        if idx == 1:
+                wv_i = (
+                        wv_im1 + 1 * ds * (
+                                w0prime_im1 - Binv_T @ tf.linalg.cross(
+                                        tf.squeeze(wv_im1, axis=-1),
+                                        tf.squeeze(B_T @ (wv_im1 - w0_im1), axis=-1)
+                                 )[:, :, tf.newaxis]
+                        )
+                ) * tf.cast( seq_mask_idx, dtype=wv.dtype )
+
+        # if
+        else:
+            wv_im2 = tf.expand_dims( wv.read( idx - 2 ), axis=-1 )
+            wv_i   = (
+                        wv_im2 + 2 * ds * (
+                                w0prime_im1 - Binv_T @ tf.linalg.cross(
+                                        tf.squeeze(wv_im1, axis=-1),
+                                        tf.squeeze(B_T @ (wv_im1 - w0_im1), axis=-1)
+                                )[:, :, tf.newaxis]
+                        )
+                ) * tf.cast( seq_mask_idx, dtype=wv.dtype )
 
         wv = wv.write( idx, tf.squeeze( wv_i, axis=-1 ) )
 
