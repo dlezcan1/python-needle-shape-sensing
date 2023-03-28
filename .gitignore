@@ -133,3 +133,4 @@ dmypy.json
 
 # scripts
 upload_pypi.bat
+upload_pypi.sh
