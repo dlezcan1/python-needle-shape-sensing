@@ -1,6 +1,6 @@
 import numpy as np
 
-from . import numerical, intrinsics, geometry, sensorized_needles
+from needle_shape_sensing import numerical, intrinsics, geometry, sensorized_needles
 
 
 class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
@@ -425,3 +425,72 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
     # update_wavelengths
 
 # class: ShapeSensingFBGNeedle
+
+class ShapeSensingMCFNeedle(ShapeSensingFBGNeedle, sensorized_needles.MCFNeedle):
+    def __init__(
+        self, 
+        length: 
+        float, 
+        serial_number: str, 
+        num_channels: int, 
+        sensor_location=None, 
+        calibration_mats=None,
+        central_core_ch:int = None, 
+        weights=None, 
+        ds: float = 0.5, 
+        current_depth: float = 0, 
+        optim_options: dict = None, 
+        cts_integration: bool = False, 
+        **kwargs
+    ):
+        super().__init__(
+            length=length, 
+            serial_number=serial_number, 
+            num_channels=num_channels, 
+            sensor_location=sensor_location, 
+            calibration_mat=calibration_mats,
+            weights=weights, 
+            ds=ds, 
+            current_depth=current_depth, 
+            optim_options=optim_options, 
+            cts_integration=cts_integration,
+            central_core_ch=central_core_ch,
+            **kwargs
+        )
+
+    # __init__
+
+    @staticmethod
+    def from_FBGNeedle(fbgneedle: sensorized_needles.FBGNeedle, **kwargs):
+        raise NotImplementedError("use 'from_MCFNeedle' function")
+    
+    # from_FBGNeedle
+
+    @staticmethod
+    def from_MCFNeedle( mcfneedle: sensorized_needles.MCFNeedle, **kwargs ):
+        """ Turn an FBGNeedle into a shape-sensing FBGNeedle
+
+            :param fbgneedle: FBGNeedle to turn into a sensorized one
+            :keyword ds: the ds for the ShapeSensingFBGNeedle constructor
+            :keyword current_depth: the current insertion depth for the ShapeSensingFBGNeedle constructor
+
+            :return: ShapeSensingFBGNeedle with the current FBGNeedle
+        """
+        return ShapeSensingMCFNeedle(
+                mcfneedle.length,
+                mcfneedle.serial_number,
+                mcfneedle.num_channels,
+                sensor_location=mcfneedle.sensor_location,
+                calibration_mats=mcfneedle.cal_matrices,
+                weights=mcfneedle.weights,
+                diameter=mcfneedle.diameter,
+                Emod=mcfneedle.Emod,
+                pratio=mcfneedle.pratio,
+                ref_wavelengths=mcfneedle.ref_wavelengths,
+                central_core_ch=mcfneedle.central_core_ch,
+                **kwargs
+        )
+    
+    # from_MCFNeedle
+
+# ShapeSensingMCFNeedle

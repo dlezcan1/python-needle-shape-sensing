@@ -11,7 +11,7 @@ from typing import Union, Callable
 
 import numpy as np
 
-from . import numerical, geometry
+from needle_shape_sensing import numerical, geometry
 
 
 class SHAPETYPE( Flag ):

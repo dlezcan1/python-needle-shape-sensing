@@ -10,7 +10,7 @@ from typing import Union
 
 import numpy as np
 
-from . import numerical, intrinsics
+from needle_shape_sensing import numerical, intrinsics
 
 
 def constant_curvature_cost( eta: np.ndarray, data, s_m: Union[ list, np.ndarray ], ds: float,

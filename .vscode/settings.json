@@ -1,3 +1,9 @@
 {
-    "python.linting.enabled": true
+    "python.linting.enabled": true,
+    "terminal.integrated.env.linux": {
+        "PYTHONPATH": "${workspaceFolder}"
+    },
+    "terminal.integrated.env.osx": {
+        "PYTHONPATH": "${workspaceFolder}",
+    }
 }

@@ -1,0 +1,16 @@
+{
+    "serial number": "MCF-4CH-4AA-0001",
+    "length": 200.0,
+    "diameter": 1.27,
+    "Emod": 83000,
+    "pratio": 0.33,
+    "# channels": 4,
+    "# active areas": 4,
+    "Sensor Locations": {
+        "1": 190.0,
+        "2": 165.0,
+        "3": 130.0,
+        "4": 100.0
+    },
+    "Central Core CH": 4
+}

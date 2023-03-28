@@ -3,7 +3,7 @@ import json
 
 import numpy as np
 
-from needle_shape_sensing.shape_sensing import ShapeSensingFBGNeedle
+from needle_shape_sensing.shape_sensing import ShapeSensingFBGNeedle, ShapeSensingMCFNeedle
 from needle_shape_sensing.intrinsics import SHAPETYPE, SingleBend
 from needle_shape_sensing.cost_functions import singlebend_singlelayer_cost
 from needle_shape_sensing.numerical import integrateEP_w0, integrateEP_w0_ode, integratePose_wv

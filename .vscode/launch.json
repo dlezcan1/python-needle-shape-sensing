@@ -11,6 +11,24 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true
-        }
+        },
+        {
+            "name": "Build MCF Needle",
+            "type": "python",
+            "request": "launch",
+            "program": "needle_shape_sensing/sensorized_needles.py",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--material", "nitinol",
+                "--needle-gauge", "18G", 
+                "--mcf-central-core-ch", "4",
+                "200", // length
+                "4", // number of channels
+                "10", "35", "70", "100", // sensor locations
+                "1",
+            ]
+        },
     ]
 }

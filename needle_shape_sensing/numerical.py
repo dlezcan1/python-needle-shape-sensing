@@ -16,8 +16,8 @@ from scipy import interpolate
 from spatialmath.base import exp2r
 from numba import jit
 
-from . import geometry, cost_functions
-from .sensorized_needles import FBGNeedle
+from needle_shape_sensing import geometry, cost_functions
+from needle_shape_sensing.sensorized_needles import FBGNeedle
 
 
 class NeedleParamOptimizations:

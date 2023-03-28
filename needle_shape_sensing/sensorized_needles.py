@@ -14,7 +14,7 @@ from warnings import warn
 
 import numpy as np
 
-from . import fbg_signal_processing
+from needle_shape_sensing import fbg_signal_processing
 
 
 class Needle( object ):
@@ -51,7 +51,7 @@ class Needle( object ):
 
     def __init__(
             self, length: float, serial_number: str, diameter: float = None, Emod: float = None,
-            pratio: float = None
+            pratio: float = None, **kwargs
     ):
         """ constructor
 
@@ -83,6 +83,11 @@ class Needle( object ):
         return msg
 
     # __str__
+
+    def __repr__( self ):
+        return self.__class__.__name__ + ":\n" + str( self )
+
+    # __repr__
 
     # =================== PROPERTIES ============================= #
     @property
@@ -164,6 +169,24 @@ class Needle( object ):
     # torsional_stiffness
 
     # =============== FUNCTIONS ================================== #
+    def save_json( self, outfile: str = "needle_params.json" ):
+        """
+        This function is used to save the needle parameters as a JSON file.
+        
+        Args:
+            - outfile: str, the output json file to be saved.
+        
+        """
+        data = self.to_dict()
+
+        # write the data
+        with open( outfile, 'w' ) as outfile:
+            json.dump( data, outfile, indent=4 )
+
+        # with
+
+    # save_json
+
     def to_dict( self ) -> dict:
         """ Convert object to a dictionary"""
         return {
@@ -266,7 +289,7 @@ class FBGNeedle( Needle ):
         if self.cal_matrices:
             msg += "\nCalibration Matrices:"
             for loc, cal_mat in self.cal_matrices.items():
-                msg += "\n\t{}: ".format( loc ) + str( cal_mat.tolist() )
+                msg += "\n\t{}: ".format( loc ) + str( np.asarray(cal_mat).tolist() )
 
                 if self.weights:
                     msg += " | weight: " + str( self.weights[ loc ] )
@@ -278,11 +301,6 @@ class FBGNeedle( Needle ):
         return msg
 
     # __str__
-
-    def __repr__( self ):
-        return "FBGneedle:\n" + str( self )
-
-    # __repr__
 
     ############################## PROPERTIES ######################################
     @property
@@ -701,24 +719,8 @@ class FBGNeedle( Needle ):
 
     # generate_chaa
 
-    @staticmethod
-    def load_json( filename: str ):
-        """ 
-        This function is used to load a FBGNeedle class from a saved JSON file.
-        
-        Args:
-            - filename: str, the input json file to be loaded.
-            
-        Returns:
-            A FBGNeedle Class object with the loaded json files.
-        
-        """
-        # load the data from the json file to a dict
-        with open( filename, 'r' ) as json_file:
-            data = json.load( json_file )
-
-        # with
-
+    @classmethod
+    def from_dict(cls, data: dict, **kwargs):
         # insert the sensor locations in order of AA
         if 'Sensor Locations' in data.keys():
             sensor_locations = [ data[ 'Sensor Locations' ][ str( key ) ] for key in
@@ -775,41 +777,46 @@ class FBGNeedle( Needle ):
         pratio = data.get( 'pratio', None )
 
         # instantiate the FBGNeedle class object
-        fbg_needle = FBGNeedle(
-                data[ 'length' ],
-                data[ 'serial number' ],
-                data[ '# channels' ],
-                sensor_locations,
-                cal_mats,
-                weights,
+        fbg_needle = cls(
+                length=data[ 'length' ],
+                serial_number=data[ 'serial number' ],
+                num_channels=data[ '# channels' ],
+                sensor_location=sensor_locations,
+                calibration_mats=cal_mats,
+                weights=weights,
                 diameter=diameter,
                 Emod=Emod,
                 pratio=pratio,
                 ref_wavelengths=ref_wavelengths,
+                **kwargs,
         )
 
         # return the instantiation
         return fbg_needle
+    
+    # from_dict
 
-    # load_json
-
-    def save_json( self, outfile: str = "needle_params.json" ):
-        """
-        This function is used to save the needle parameters as a JSON file.
+    @classmethod
+    def load_json( cls, filename: str ):
+        """ 
+        This function is used to load a FBGNeedle class from a saved JSON file.
         
         Args:
-            - outfile: str, the output json file to be saved.
+            - filename: str, the input json file to be loaded.
+            
+        Returns:
+            A FBGNeedle Class object with the loaded json files.
         
         """
-        data = self.to_dict()
-
-        # write the data
-        with open( outfile, 'w' ) as outfile:
-            json.dump( data, outfile, indent=4 )
+        # load the data from the json file to a dict
+        with open( filename, 'r' ) as json_file:
+            data = json.load( json_file )
 
         # with
 
-    # save_json
+        return cls.from_dict(data)
+
+    # load_json
 
     def to_dict( self ) -> dict:
         """ Dictionary the values here """
@@ -914,8 +921,15 @@ class FBGNeedle( Needle ):
 
 class MCFNeedle( FBGNeedle ):
     def __init__(
-            self, length: float, serial_number: str, num_channels: int, central_core_ch: int, sensor_location=None,
-            calibration_mats=None, weights=None, **kwargs
+            self, 
+            length: float, 
+            serial_number: str, 
+            num_channels: int, 
+            sensor_location=None,
+            calibration_mats=None, 
+            weights=None, 
+            central_core_ch: int = None, 
+            **kwargs
     ):
         """
         Constructor
@@ -942,6 +956,14 @@ class MCFNeedle( FBGNeedle ):
 
     # __init__
 
+    def __str__(self):
+        msg = super().__str__()
+        msg += "\nCentral core Channel: {:d}".format(self.central_core_ch)
+
+        return msg
+    
+    # __str__
+
     @staticmethod
     def assignments_centralcore( num_channels, num_active_areas, central_core_ch ):
         """ Return the Central core assignments mask """
@@ -960,6 +982,15 @@ class MCFNeedle( FBGNeedle ):
         )
 
     # __assignments_centralcore
+
+    @classmethod
+    def from_dict(cls, data: dict, **kwargs):
+        central_core_ch =  data["Central Core CH"]
+        mcf_needle = super().from_dict(data, central_core_ch=central_core_ch)
+
+        return mcf_needle
+
+    # from_dict
 
     def temperature_compensate( self, proc_signals: np.ndarray, arg_check: bool = True ) -> np.ndarray:
         """ Perform temperature compensation using the central core for processed signals
@@ -1040,6 +1071,7 @@ def __get_argparser() -> argparse.ArgumentParser:
     material_grp.add_argument( '--Emod', type=float, default=None, help="Young's Modulus of the needle (in GPa)" )
     material_grp.add_argument( '--poisson-ratio', type=float, default=None, help="The Poisson's ratio of the needle" )
 
+    parser.add_argument( '--mcf-central-core-ch', type=int, default=None, help="MCF Central core channel. If not provided, will use standard FBGNeedle class.")
     parser.add_argument( 'length', type=float, help='The entire length of the FBG needle' )
     parser.add_argument( 'num_channels', type=int, help='The number of channels in the FBG needle' )
 
@@ -1058,11 +1090,13 @@ def main( args=None ):
     # FBG needle parameters
     length = pargs.length  # mm
     num_chs = pargs.num_channels
+    central_core_ch = pargs.mcf_central_core_ch
     # aa_locs_tip = np.cumsum( [ 11, 20, 35, 35 ] )[ ::1 ]  # 4 AA needle
     aa_locs = (length - np.array( pargs.sensor_locations )).tolist()
 
     needle_num = pargs.needle_num
     serial_number = "{:d}CH-{:d}AA-{:04d}".format( num_chs, len( aa_locs ), needle_num )
+
     directory = os.path.join( 'data', serial_number )
 
     # process size parameters
@@ -1088,12 +1122,19 @@ def main( args=None ):
 
     # else
 
+    NeedleClass = FBGNeedle
+    if central_core_ch is not None:
+        NeedleClass = MCFNeedle
+        serial_number = f"MCF-{serial_number}"
+
+    # if
+
     # get FBGNeedle instance
     if pargs.update_file is not None:
         save_file = os.path.normpath( pargs.update_file )
         directory = os.path.dirname( save_file )
         print( "Updated needle parameters:" )
-        needle = FBGNeedle.load_json( save_file )
+        needle = NeedleClass.load_json( save_file )
 
         # update the needle parameters
         needle._length = length
@@ -1107,20 +1148,27 @@ def main( args=None ):
     # if
 
     else:
-        save_file = os.path.join( directory, '../needle_params.json' )
+        save_file = os.path.realpath(os.path.join( directory, f'../needle_params_{serial_number}.json' ))
+        directory = os.path.split(save_file)[0]
         print( "New needle parameters:" )
-        needle = FBGNeedle(
-                length, serial_number, num_chs, aa_locs, diameter=diameter,
-                Emod=Emod, pratio=pratio
+        needle = NeedleClass(
+                length, 
+                serial_number, 
+                num_chs, 
+                aa_locs, 
+                diameter=diameter,
+                Emod=Emod, 
+                pratio=pratio,
+                central_core_ch=central_core_ch,
         )
 
     # else
 
-    print( needle )
+    print( repr(needle ) )
     print()
 
     if not os.path.isdir( directory ):
-        os.mkdir( directory )
+        os.mkdir( directory, exist_ok=True )
 
     # if
 
@@ -1138,7 +1186,7 @@ def main( args=None ):
 # main
 
 # for debugging purposes and creating new FBGneedle param files
-if __name__ == "__main__" or False:
+if __name__ == "__main__":
     main()
 
 # if: __main__
