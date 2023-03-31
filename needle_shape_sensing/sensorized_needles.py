@@ -720,6 +720,19 @@ class FBGNeedle( Needle ):
     # generate_chaa
 
     @classmethod
+    def _json_data_is_of_class(cls, json_data: dict):
+        """ Checks if dict of json data fits this class"""
+
+        conditions = [
+            'Sensor Locations' in json_data.keys(),
+            '# channels' in json_data.keys(),
+        ]
+
+        return all(conditions)
+
+    # _json_data_is_of_class
+
+    @classmethod
     def from_dict(cls, data: dict, **kwargs):
         # insert the sensor locations in order of AA
         if 'Sensor Locations' in data.keys():
@@ -796,8 +809,8 @@ class FBGNeedle( Needle ):
     
     # from_dict
 
-    @classmethod
-    def load_json( cls, filename: str ):
+    @staticmethod
+    def load_json( filename: str ):
         """ 
         This function is used to load a FBGNeedle class from a saved JSON file.
         
@@ -814,7 +827,11 @@ class FBGNeedle( Needle ):
 
         # with
 
-        return cls.from_dict(data)
+        needle_cls = FBGNeedle
+        if MCFNeedle._json_data_is_of_class(data):
+            needle_cls = MCFNeedle
+
+        return needle_cls.from_dict(data)
 
     # load_json
 
@@ -984,6 +1001,15 @@ class MCFNeedle( FBGNeedle ):
     # __assignments_centralcore
 
     @classmethod
+    def _json_data_is_of_class( cls, json_data: dict ):
+        conditions = [
+            super()._json_data_is_of_class(json_data),
+            'Central Core CH' in json_data.keys(),
+        ]
+
+        return all(conditions)
+
+    @classmethod
     def from_dict(cls, data: dict, **kwargs):
         central_core_ch =  data["Central Core CH"]
         mcf_needle = super().from_dict(data, central_core_ch=central_core_ch)
@@ -1072,11 +1098,12 @@ def __get_argparser() -> argparse.ArgumentParser:
     material_grp.add_argument( '--poisson-ratio', type=float, default=None, help="The Poisson's ratio of the needle" )
 
     parser.add_argument( '--mcf-central-core-ch', type=int, default=None, help="MCF Central core channel. If not provided, will use standard FBGNeedle class.")
+    parser.add_argument( '--serial-number', type=str, default="{0:d}CH-{1:d}AA-{2:04d}", help="Override the serial number with formats {0}, {1}, and {2}")
     parser.add_argument( 'length', type=float, help='The entire length of the FBG needle' )
     parser.add_argument( 'num_channels', type=int, help='The number of channels in the FBG needle' )
 
     parser.add_argument( 'sensor_locations', type=float, nargs='+', help='Sensor locations from the tip of the needle' )
-    parser.add_argument( 'needle_num', type=int, help='The number of channels in the FBG needle' )
+    parser.add_argument( 'needle_num', type=int, help='The number of the FBG Needle' )
 
     return parser
 
@@ -1095,7 +1122,7 @@ def main( args=None ):
     aa_locs = (length - np.array( pargs.sensor_locations )).tolist()
 
     needle_num = pargs.needle_num
-    serial_number = "{:d}CH-{:d}AA-{:04d}".format( num_chs, len( aa_locs ), needle_num )
+    serial_number = pargs.serial_number.format( num_chs, len( aa_locs ), needle_num )
 
     directory = os.path.join( 'data', serial_number )
 
@@ -1125,7 +1152,6 @@ def main( args=None ):
     NeedleClass = FBGNeedle
     if central_core_ch is not None:
         NeedleClass = MCFNeedle
-        serial_number = f"MCF-{serial_number}"
 
     # if
 
@@ -1168,7 +1194,7 @@ def main( args=None ):
     print()
 
     if not os.path.isdir( directory ):
-        os.mkdir( directory, exist_ok=True )
+        os.mkdir( directory )
 
     # if
 

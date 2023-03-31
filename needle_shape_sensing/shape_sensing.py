@@ -78,6 +78,9 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
 
             :return: ShapeSensingFBGNeedle with the current FBGNeedle
         """
+        if isinstance(fbgneedle, sensorized_needles.MCFNeedle):
+            return ShapeSensingMCFNeedle.from_MCFNeedle(fbgneedle, **kwargs)
+
         return ShapeSensingFBGNeedle(
                 fbgneedle.length,
                 fbgneedle.serial_number,
