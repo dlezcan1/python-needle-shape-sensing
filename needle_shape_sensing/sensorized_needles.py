@@ -1018,6 +1018,72 @@ class MCFNeedle( FBGNeedle ):
 
     # from_dict
 
+    def curvatures_processed( self, proc_signals: Union[ dict, np.ndarray ] ) -> Union[ dict, np.ndarray ]:
+        """ Determine the curvatures from signals input
+
+            Args:
+                proc_signals: {AA_index: processed signal} must be processed and temperature compensated
+
+        """
+
+        if isinstance( proc_signals, dict ):
+            curvatures = { }
+            for aa_i, proc_signal in proc_signals.items():
+                if 0 <= self.central_core_ch < proc_signal.shape[0]:
+                    proc_signal = np.append(
+                            proc_signal[:self.central_core_ch],
+                            proc_signal[self.central_core_ch+1:-1]
+                    )
+                # get the appropriate calibration matrix
+                C_aa_i = self.aa_cal( f"AA{aa_i}" ) if isinstance( aa_i, int ) else self.aa_cal( aa_i )
+
+                curvatures[ aa_i ] = C_aa_i @ proc_signal  # 2 x num_AA @ num_AA x 1
+
+            # for
+
+        # if
+
+        elif isinstance( proc_signals, np.ndarray ):
+            # initalize curvatures
+            if proc_signals.ndim == 1:
+                curvatures = np.zeros( (2, self.num_activeAreas) )
+            elif proc_signals.ndim == 2:
+                curvatures = np.zeros( (proc_signals.shape[ 0 ], 2, self.num_activeAreas) )
+            else:
+                raise IndexError( "'proc_signals' dimensions must be <= 2." )
+
+            for aa_i in range( 1, self.num_activeAreas + 1 ):
+                mask_aa_i = list( map(
+                        lambda aa, is_central_ch: (aa == aa_i) and (not is_central_ch),
+                        self.assignments_aa(), self.assignments_centralcore()
+                ) )
+
+                C_aa_i = self.aa_cal( f"AA{aa_i}" )
+
+                if proc_signals.ndim == 1:
+                    proc_signals_aa_i = proc_signals[ mask_aa_i ]
+                    curvatures[ :, aa_i - 1 ] = C_aa_i @ proc_signals_aa_i
+
+                # if
+
+                else:
+                    proc_signals_aa_i = proc_signals[ :, mask_aa_i ]
+                    curvatures[ :, :, aa_i - 1 ] = proc_signals_aa_i @ C_aa_i.T
+
+                # else
+            # for
+
+        # else
+
+        else:
+            raise TypeError( "'proc_signals' must be a 'dict' or 'numpy.ndarray'" )
+
+        # else
+
+        return curvatures
+
+    # curvatures_processed
+
     def temperature_compensate( self, proc_signals: np.ndarray, arg_check: bool = True ) -> np.ndarray:
         """ Perform temperature compensation using the central core for processed signals
 
