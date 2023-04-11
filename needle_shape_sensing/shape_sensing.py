@@ -145,6 +145,9 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
                 pmat = pmat @ R_init.T
                 Rmat = R_init @ Rmat
 
+                self.current_winit = curvature
+                self.current_kc = [np.linalg.norm(curvature)]
+
             # if
             elif self.current_shapetype == intrinsics.SHAPETYPE.SINGLEBEND_SINGLELAYER:
                 # get parameters

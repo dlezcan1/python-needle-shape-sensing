@@ -336,7 +336,7 @@ class FBGNeedle( Needle ):
 
     @property
     def sensor_calibrated( self ):
-        return all( self.ref_wavelengths >= 0 )
+        return np.all( self.ref_wavelengths >= 0 )
 
     # sensor_calibrated
 

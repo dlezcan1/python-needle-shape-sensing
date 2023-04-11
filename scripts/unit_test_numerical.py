@@ -161,11 +161,37 @@ def test_ideal_insertion():
             ds=ds,
     )
     print(pmat[-1])
+    print()
+
+# test_ideal_insertion
+
+def test_jig_insertion():
+    print("Testing jig insertion")
+
+    ss_needle = ShapeSensingFBGNeedle.load_json("data/needle_params_2022-10-10_Jig-Calibration_all_weights.json")
+    ss_needle.update_shapetype(intrinsics.SHAPETYPE.CONSTANT_CURVATURE)
+
+    curvature = [1/500, 0]
+    L = 151
+
+    ss_needle.ref_wavelengths = np.ones_like(ss_needle.num_signals)
+    ss_needle.current_curvatures = np.tile(curvature, (ss_needle.num_aa, 1)).T
+    ss_needle.current_depth = L
+
+    pmat, Rmat = ss_needle.get_needle_shape()
+    print("winit = ", ss_needle.current_winit)
+    print("kc = ", ss_needle.current_kc)
+    print("pmat tip = ", pmat[-1])
+    print("Rmat base = \n", Rmat[1])
+    print()
+
+# test_jig_insertion
 
 
 if __name__ == "__main__":
     # check_numerical_integrations("data/shape_stuff.json")
     # test_simpson_vec_int("data/simpson_vec_int.json")
     test_ideal_insertion()
+    test_jig_insertion()
 
 # if __main__

@@ -72,7 +72,7 @@ class NeedleParamOptimizations:
 
         # compute the weighted-mean curvature from the measurements
         data_ins_w = data_ins * weights.reshape( -1, 1 )
-        curvature = data_ins_w.mean( axis=0 )
+        curvature = data_ins_w.sum( axis=0 )
 
         return curvature
 
