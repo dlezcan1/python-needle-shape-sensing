@@ -454,7 +454,7 @@ class ShapeSensingMCFNeedle(ShapeSensingFBGNeedle, sensorized_needles.MCFNeedle)
             serial_number=serial_number, 
             num_channels=num_channels, 
             sensor_location=sensor_location, 
-            calibration_mat=calibration_mats,
+            calibration_mats=calibration_mats,
             weights=weights, 
             ds=ds, 
             current_depth=current_depth, 
@@ -476,11 +476,11 @@ class ShapeSensingMCFNeedle(ShapeSensingFBGNeedle, sensorized_needles.MCFNeedle)
     def from_MCFNeedle( mcfneedle: sensorized_needles.MCFNeedle, **kwargs ):
         """ Turn an FBGNeedle into a shape-sensing FBGNeedle
 
-            :param fbgneedle: FBGNeedle to turn into a sensorized one
+            :param mcfneedle: MCFNeedle to turn into a sensorized one
             :keyword ds: the ds for the ShapeSensingFBGNeedle constructor
             :keyword current_depth: the current insertion depth for the ShapeSensingFBGNeedle constructor
 
-            :return: ShapeSensingFBGNeedle with the current FBGNeedle
+            :return: ShapeSensingMCFNeedle with the current FBGNeedle
         """
         return ShapeSensingMCFNeedle(
                 mcfneedle.length,

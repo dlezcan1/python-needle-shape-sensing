@@ -10,13 +10,25 @@ def test_ssmcfneedle():
     mcfneedle = MCFNeedle.load_json(
             os.path.join(
                     "data",
-                    "needle_params_MCF-4CH-4AA-0001.json"
+                    "needle_params_7CH-4AA-0001-MCF-even_2023-03-29_Jig-Calibration_clinically-relevant-2_weighted.json"
             )
     )
 
     ss_mcfneedle = ShapeSensingMCFNeedle.from_MCFNeedle( mcfneedle )
 
     print( repr( ss_mcfneedle ) )
+
+    signals = np.stack(
+            (np.zeros( mcfneedle.num_signals ), np.ones( mcfneedle.num_signals )),
+            axis=0
+    )
+    ref_signals = np.zeros_like(signals)
+    ss_mcfneedle.update_wavelengths(ref_signals, reference=True)
+    wavelengths, curvatures = ss_mcfneedle.update_wavelengths(signals, reference=False, temp_comp=False)
+
+    print("Signals:\n", signals)
+    print("Curvatures:\n", ss_mcfneedle.current_curvatures)
+
 
 
 def test_needle_load():
@@ -60,16 +72,23 @@ def test_mcfneedle_curvatures():
     )
     curvatures = mcfneedle.curvatures_processed( signals )
 
+    signals2 = np.ones_like(signals)
+
+    curvatures2 = mcfneedle.curvatures_processed(signals2)
+
     print( mcfneedle )
     print( "Signals:\n", signals )
     print( "Curvatures:\n", curvatures )
+
+    print( "Signals2:\n", signals2 )
+    print( "Curvatures2:\n", curvatures2 )
 
 
 def main():
     fns = [
             test_ssmcfneedle,
-            test_needle_load,
-            test_mcfneedle_curvatures,
+            # test_needle_load,
+            # test_mcfneedle_curvatures,
     ]
 
     for fn in fns:
