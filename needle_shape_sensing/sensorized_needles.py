@@ -649,7 +649,6 @@ class FBGNeedle( Needle ):
                 proc_signals: {AA_index: processed signal} must be processed and temperature compensated
 
         """
-
         if isinstance( proc_signals, dict ):
             curvatures = { }
             for aa_i, proc_signal in proc_signals.items():
@@ -1025,7 +1024,6 @@ class MCFNeedle( FBGNeedle ):
                 proc_signals: {AA_index: processed signal} must be processed and temperature compensated
 
         """
-
         if isinstance( proc_signals, dict ):
             curvatures = { }
             for aa_i, proc_signal in proc_signals.items():
