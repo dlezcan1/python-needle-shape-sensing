@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
         name='needle-shape-sensing',
-        version='0.8.5',
+        version='0.8.6',
         author='Dimitri Lezcano',
         author_email='dlezcan1@jhu.edu',
         packages=find_packages(),
@@ -20,10 +20,10 @@ setup(
                 'torch',
                 'torchvision',
                 'torchaudio',
-                'needle-shape-sensing'
-                ],
+                'needle-shape-sensing',
+        ],
         classifiers=[
-                'Operating System :: OS Independent',
-                'License :: OSI Approved :: MIT License'
-                ]
-        )
+        'Operating System :: OS Independent',
+        'License :: OSI Approved :: MIT License'
+        ]
+)

@@ -21,6 +21,26 @@ class SHAPETYPE( Flag ):
     SINGLEBEND_DOUBLELAYER = 0x02
     DOUBLEBEND_SINGLELAYER = 0x10 | SINGLEBEND_SINGLELAYER
 
+    def is_singlebend(self):
+        return self.value & 0x10 == 0x00
+    
+    # is_singlebend
+
+    def is_doublebend(self):
+        return self.value & 0x10 == 0x10
+    
+    # is_doublebend
+
+    def is_singlelayer(self):
+        return self.value & 0x01 == 0x01
+    
+    # is_singlelayer
+
+    def is_doublelayer(self):
+        return self.value & 0x02 == 0x02
+    
+    # is_doublelayer
+
     def get_k0( self ):
         """ Get the intrinsics kappa 0 function
 
@@ -271,8 +291,7 @@ class ConstantCurvature:
 
 class SingleBend:
     @staticmethod
-    def k0_1layer( s: np.ndarray, kc: float, length: float, return_callable: bool = False ) -> (
-            Union[ np.ndarray, Callable ], Union[ np.ndarray, Callable ]):
+    def k0_1layer( s: np.ndarray, kc: float, length: float, return_callable: bool = False ):
         """
         Intrinsics curvatures of the double layer insertion scenario
         
@@ -302,8 +321,12 @@ class SingleBend:
 
     @staticmethod
     def k0_2layer(
-            s: np.ndarray, kc_1: float, kc_2: float, length: float, s_crit: float,
-            return_callable: bool = False
+        s: np.ndarray, 
+        kc_1: float, 
+        kc_2: float, 
+        length: float, 
+        s_crit: float,
+        return_callable: bool = False,
     ):
         """
         Intrinsics curvatures of the double layer insertion scenario
@@ -382,8 +405,14 @@ class SingleBend:
 
     @staticmethod
     def k0_3layer(
-            s: np.ndarray, kc_1: float, kc_2: float, kc_3: float, length: float, s_crit_1: float,
-            s_crit_2: float, return_callable: bool = False
+        s: np.ndarray, 
+        kc_1: float, 
+        kc_2: float, 
+        kc_3: float, 
+        length: float, 
+        s_crit_1: float,
+        s_crit_2: float, 
+        return_callable: bool = False,
     ):
         """
         Intrinsics curvatures of the double layer insertion scenario
@@ -491,9 +520,17 @@ class SingleBend:
 
     @staticmethod
     def determine_2layer_boundary(
-            kc1: float, length: float, z_crit, B: np.ndarray, w_init: np.ndarray = None,
-            s0: float = 0, ds: float = 0.5, R_init: np.ndarray = np.eye( 3 ),
-            Binv: np.ndarray = None, needle_rotations: list = None, continuous: bool = False
+        kc1: float, 
+        length: float, 
+        z_crit: float, 
+        B: np.ndarray, 
+        w_init: np.ndarray = None,
+        s0: float = 0, 
+        ds: float = 0.5, 
+        R_init: np.ndarray = np.eye( 3 ),
+        Binv: np.ndarray = None, 
+        needle_rotations: list = None, 
+        continuous: bool = False,
     ):
         """
             Determine the length of the needle that is inside the first layer only (s_crit)
@@ -573,8 +610,12 @@ class SingleBend:
 class DoubleBend:
     @staticmethod
     def k0_1layer(
-            s: np.ndarray, kc: float, length: float, s_crit: float, p: float = 2 / 3,
-            return_callable: bool = False
+        s: np.ndarray, 
+        kc: float, 
+        length: float, 
+        s_crit: float, 
+        p: float = 2 / 3,
+        return_callable: bool = False,
     ):
         """
             Intrinsics curvatures of the double layer insertion scenario
