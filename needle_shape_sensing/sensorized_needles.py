@@ -247,14 +247,15 @@ class FBGNeedle( Needle ):
         super().__init__( length, serial_number, **kwargs )
 
         # property set-up (None so that they are set once)
-        self._num_channels = num_channels
-        self._sensor_location = list( sensor_location )
-        self._cal_matrices = { }
-        self._weights = { }
+        self._num_channels    = num_channels
+        self._sensor_location = np.asarray( sensor_location )
+        self._cal_matrices    = { }
+        self._weights         = { }
+        self.options          = dict()
 
         # assignments
-        self.cal_matrices = calibration_mats
-        self.weights = weights
+        self.cal_matrices    = calibration_mats
+        self.weights         = weights
         self.ref_wavelengths = (
             -np.ones( self.num_channels * self.num_activeAreas )
             if ref_wavelengths is None else
@@ -348,7 +349,7 @@ class FBGNeedle( Needle ):
 
     @property
     def sensor_location_tip( self ):
-        return [ self.length - base_loc for base_loc in self.sensor_location ]
+        return self.length - self.sensor_location
 
     # sensor_location_tip
 
@@ -491,30 +492,40 @@ class FBGNeedle( Needle ):
     # aa_loc
 
     @staticmethod
-    def assignments_aa( num_channels: int, num_active_areas: int ) -> list:
+    def assignments_aa( num_channels: int, num_active_areas: int ) -> np.ndarray:
         """ Function for returning a list of AA assignments """
-        return list( range( 1, num_active_areas + 1 ) ) * num_channels
+        return np.asarray(list( range( 1, num_active_areas + 1 ) ) * num_channels)
 
     # assignments_aa
 
-    def __assignments_aa( self ) -> list:
+    def __assignments_aa( self ) -> np.ndarray:
         """ Instance method of assignments_aa """
         return FBGNeedle.assignments_aa( self.num_channels, self.num_activeAreas )
 
     # __assignments_aa
 
     @staticmethod
-    def assignments_ch( num_channels: int, num_active_areas: int ) -> list:
+    def assignments_ch( num_channels: int, num_active_areas: int ) -> np.ndarray:
         """ Function for returning a list of CH assignments"""
-        return sum( [ num_active_areas * [ ch_i ] for ch_i in range( 1, num_channels + 1 ) ], [ ] )
+        return np.asarray(sum( [ num_active_areas * [ ch_i ] for ch_i in range( 1, num_channels + 1 ) ], [ ] ))
 
     # assignments_ch
 
-    def __assignments_ch( self ) -> list:
+    def __assignments_ch( self ) -> np.ndarray:
         """ Instance method of assignments_ch """
         return FBGNeedle.assignments_ch( self.num_channels, self.num_activeAreas )
 
     # __assignments_ch
+
+    def assigment_mask_aa(self, aa_num: int) -> np.ndarray:
+        return self.assignments_aa() == aa_num
+    
+    # assignment_mask_aa
+
+    def assigment_mask_ch(self, ch_num: int) -> np.ndarray:
+        return self.assignments_ch() == ch_num
+    
+    # assignment_mask_ch
 
     @staticmethod
     def calculate_length_measured(
@@ -565,9 +576,9 @@ class FBGNeedle( Needle ):
         """
         # nump-ify the sensor locations
         if tip:
-            s_m = np.array( self.sensor_location_tip )
+            s_m = self.sensor_location_tip
         else:
-            s_m = np.array( self.sensor_location )
+            s_m = self.sensor_location
 
         return FBGNeedle.calculate_length_measured( s_m, L, tip=tip, needle_length=self.length, valid=valid )
 
@@ -700,19 +711,19 @@ class FBGNeedle( Needle ):
     # curvatures_processed
 
     @staticmethod
-    def generate_ch_aa( num_channels: int, num_active_areas: int ) -> (list, list, list):
+    def generate_ch_aa( num_channels: int, num_active_areas: int ):
         """ Generate the CHX | AAY list
 
         """
-        channels = [ f"CH{i}" for i in range( 1, num_channels + 1 ) ]
-        active_areas = [ f"AA{i}" for i in range( 1, num_active_areas + 1 ) ]
+        channels            = [ f"CH{i}" for i in range( 1, num_channels + 1 ) ]
+        active_areas        = [ f"AA{i}" for i in range( 1, num_active_areas + 1 ) ]
         channel_active_area = [ " | ".join( (ch, aa) ) for ch, aa in product( channels, active_areas ) ]
 
         return channel_active_area, channels, active_areas
 
     # generate_ch_aa
 
-    def __generate_ch_aa( self ) -> (list, list, list):
+    def __generate_ch_aa( self ):
         """ Instance method of generate_ch_aa"""
         return FBGNeedle.generate_ch_aa( self.num_channels, self.num_activeAreas )
 
@@ -910,7 +921,7 @@ class FBGNeedle( Needle ):
         # if
 
         # get AA assignments
-        aa_assignments = np.array( self.assignments_aa() )
+        aa_assignments = self.assignments_aa()
         num_dims = proc_signals.ndim
         proc_signals_Tcomp = proc_signals.copy()
 
@@ -945,6 +956,7 @@ class MCFNeedle( FBGNeedle ):
             calibration_mats=None, 
             weights=None, 
             central_core_ch: int = None, 
+            temperature_compensate_using_central_core: bool = False,
             **kwargs
     ):
         """
@@ -966,9 +978,10 @@ class MCFNeedle( FBGNeedle ):
                 **kwargs,
         )
         self.central_core_ch = central_core_ch
+        self.options["use_centralcore_Tcomp"] = temperature_compensate_using_central_core
 
         # (static/class) methods -> instance methods
-        self.assignments_centralcore = self.__assignments_centralcore
+        self.assignment_mask_centralcore = self.__assignment_mask_centralcore
 
     # __init__
 
@@ -981,23 +994,23 @@ class MCFNeedle( FBGNeedle ):
     # __str__
 
     @staticmethod
-    def assignments_centralcore( num_channels, num_active_areas, central_core_ch ):
+    def assignment_mask_centralcore( num_channels, num_active_areas, central_core_ch ):
         """ Return the Central core assignments mask """
         ch_assignments = MCFNeedle.assignments_ch( num_channels, num_active_areas )
 
-        return [ ch == central_core_ch for ch in ch_assignments ]
+        return ch_assignments == central_core_ch
 
-    # assignments_centralcore
+    # assignment_mask_centralcore
 
-    def __assignments_centralcore( self ):
+    def __assignment_mask_centralcore( self ):
         """ Instance method of assignments_centralcore """
-        return MCFNeedle.assignments_centralcore(
+        return MCFNeedle.assignment_mask_centralcore(
                 self.num_channels,
                 self.num_activeAreas,
                 self.central_core_ch
         )
 
-    # __assignments_centralcore
+    # __assignment_mask_centralcore
 
     @classmethod
     def _json_data_is_of_class( cls, json_data: dict ):
@@ -1005,6 +1018,21 @@ class MCFNeedle( FBGNeedle ):
             super()._json_data_is_of_class(json_data),
             'Central Core CH' in json_data.keys(),
         ]
+
+        # ensure calibration matrix is not using all of the matrices, otherwise, use FBGNeedle class
+        if 'Calibration Matrices' in json_data.keys():
+            num_chs = json_data["# channels"]
+            for sloc, cal_mat in json_data['Calibration Matrices'].items():
+                conditions.append(
+                    all(
+                        len(cal_mat_row) == num_chs - 1 # ignore central core
+                        for cal_mat_row in cal_mat
+                    )
+                )
+
+            # for
+
+        # if
 
         return all(conditions)
 
@@ -1053,7 +1081,7 @@ class MCFNeedle( FBGNeedle ):
             for aa_i in range( 1, self.num_activeAreas + 1 ):
                 mask_aa_i = list( map(
                         lambda aa, is_central_ch: (aa == aa_i) and (not is_central_ch),
-                        self.assignments_aa(), self.assignments_centralcore()
+                        self.assignments_aa(), self.assignment_mask_centralcore()
                 ) )
 
                 C_aa_i = self.aa_cal( f"AA{aa_i}" )
@@ -1102,27 +1130,46 @@ class MCFNeedle( FBGNeedle ):
 
         # if
 
-        aa_assignments = np.array( self.assignments_aa() )
-        cc_assignments = np.array( self.assignments_centralcore() )
-        num_dims = proc_signals.ndim
+        cc_assignments     = self.assignment_mask_centralcore()
+        num_dims           = proc_signals.ndim
         proc_signals_Tcomp = proc_signals.copy()
 
         for aa_i in range( 1, self.num_activeAreas + 1 ):
-            aa_i_mask = (aa_assignments == aa_i)
-            if num_dims == 1:
-                proc_signals_Tcomp[ aa_i_mask ] -= proc_signals[
-                    aa_i_mask & cc_assignments
-                    ]
+            aa_i_mask = self.assigment_mask_aa(aa_i)
+            
+            if self.options["use_centralcore_Tcomp"]:
+                if num_dims == 1:
+                    proc_signals_Tcomp[ aa_i_mask ] -= (
+                        proc_signals[ aa_i_mask & cc_assignments ]
+                    )
 
-            # if
-            elif num_dims == 2:
-                proc_signals_Tcomp[ :, aa_i_mask ] -= proc_signals[
-                                                      :,
-                                                      aa_i_mask & cc_assignments
-                                                      ]
+                # if
+                elif num_dims == 2:
+                    proc_signals_Tcomp[ :, aa_i_mask ] -= (
+                        proc_signals[ :, aa_i_mask & cc_assignments ]
+                    )
 
-            # elif
+                # elif
 
+            # if: use central core
+            else:
+                if num_dims == 1:
+                    proc_signals_Tcomp[aa_i_mask] -= np.mean(
+                        proc_signals[ aa_i_mask & np.logical_not(cc_assignments)],
+                        keepdims=True,
+                    )
+
+                # if
+                elif num_dims == 2:
+                    proc_signals_Tcomp[:, aa_i_mask] -= np.mean(
+                        proc_signals[ :, aa_i_mask & np.logical_not(cc_assignments)],
+                        axis=1,
+                        keepdims=True,
+                    )
+
+                # elif
+
+            # else: ignore central core
         # for
 
         return proc_signals_Tcomp
@@ -1183,7 +1230,7 @@ def main( args=None ):
     num_chs = pargs.num_channels
     central_core_ch = pargs.mcf_central_core_ch
     # aa_locs_tip = np.cumsum( [ 11, 20, 35, 35 ] )[ ::1 ]  # 4 AA needle
-    aa_locs = (length - np.array( pargs.sensor_locations )).tolist()
+    aa_locs = (length - pargs.sensor_locations ).tolist()
 
     needle_num = pargs.needle_num
     serial_number = pargs.serial_number.format( num_chs, len( aa_locs ), needle_num )

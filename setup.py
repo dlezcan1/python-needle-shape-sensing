@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
         name='needle-shape-sensing',
-        version='0.8.6',
+        version='0.9.0',
         author='Dimitri Lezcano',
         author_email='dlezcan1@jhu.edu',
         packages=find_packages(),
@@ -23,7 +23,7 @@ setup(
                 'needle-shape-sensing',
         ],
         classifiers=[
-        'Operating System :: OS Independent',
-        'License :: OSI Approved :: MIT License'
+                'Operating System :: OS Independent',
+                'License :: OSI Approved :: MIT License'
         ]
 )

@@ -20,10 +20,10 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
 
         # current insertion parameters
         self.current_depth = current_depth
-        self.__current_shapetype = intrinsics.SHAPETYPE.SINGLEBEND_SINGLELAYER
-        self.current_wavelengths = -np.ones_like( self.ref_wavelengths )
-        self.current_curvatures = np.zeros( (len( sensor_location ), 2) )
-        self.insertion_parameters = { }
+        self.__current_shapetype  = intrinsics.SHAPETYPE.SINGLEBEND_SINGLELAYER
+        self.current_wavelengths  = -np.ones_like( self.ref_wavelengths )
+        self.current_curvatures   = np.zeros( (len( sensor_location ), 2) )
+        self.insertion_parameters = dict()
 
         # define needle shape-sensing optimizers
         self.optimizer = numerical.NeedleParamOptimizations(

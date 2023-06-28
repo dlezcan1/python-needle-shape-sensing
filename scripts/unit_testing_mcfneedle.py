@@ -29,7 +29,7 @@ def test_ssmcfneedle():
     print("Signals:\n", signals)
     print("Curvatures:\n", ss_mcfneedle.current_curvatures)
 
-
+# test_ss_mcfneedle
 
 def test_needle_load():
     fbgneedle_json = os.path.join( "data", "needle_params_2022-10-10_Jig-Calibration_all_weights.json" )
@@ -55,6 +55,7 @@ def test_needle_load():
     print( "type of ss_mcfneedle_fbg_fromjson", type( ss_mcfneedle_fbg_fromjson ) )
     print( "type of ss_mcfneedle_mcf_fromjson", type( ss_mcfneedle_mcf_fromjson ) )
 
+# test_needle_load
 
 def test_mcfneedle_curvatures():
     mcfneedle = MCFNeedle.load_json(
@@ -83,12 +84,50 @@ def test_mcfneedle_curvatures():
     print( "Signals2:\n", signals2 )
     print( "Curvatures2:\n", curvatures2 )
 
+# test_mcfneedle_curvatures
+
+def test_mcfneedle_Tcomp():
+    mcfneedle = MCFNeedle.load_json(
+            os.path.join(
+                    "data",
+                    "needle_params_MCF-4CH-4AA-0001.json"
+            ),
+    )
+    signals = np.random.randn(10, mcfneedle.num_signals)
+    print("Signals:\n", signals)
+    print()
+
+    # no central core
+    mcfneedle.options["use_centralcore_Tcomp"] = False 
+
+    Tcomp_nocc = mcfneedle.temperature_compensate(signals)
+    print("Tcomp no central core:\n", Tcomp_nocc)
+    print(
+        "Mean of non-AA signals:\n", 
+        np.mean(
+            Tcomp_nocc[:, np.logical_not(mcfneedle.assignment_mask_centralcore())],
+            axis=1
+        )
+    )
+    print()
+
+    # use central core
+    mcfneedle.options["use_centralcore_Tcomp"] = True 
+    
+    Tcomp_cc = mcfneedle.temperature_compensate(signals)
+    print("Tcomp w/ central core:\n", Tcomp_cc)
+    print("Central Core Ch WLs:\n", Tcomp_cc[:, mcfneedle.assignment_mask_centralcore()])
+    print()
+
+
+# test_mcfneedle_Tcomp
 
 def main():
     fns = [
             test_ssmcfneedle,
-            # test_needle_load,
-            # test_mcfneedle_curvatures,
+            test_needle_load,
+            test_mcfneedle_curvatures,
+            test_mcfneedle_Tcomp,
     ]
 
     for fn in fns:

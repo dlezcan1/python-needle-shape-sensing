@@ -128,7 +128,7 @@ def integration_speed_test(
 
 # integration_speed_test
 
-def temperataure_compensation_test( ss_fbgneedle: ShapeSensingFBGNeedle ):
+def temperature_compensation_test( ss_fbgneedle: ShapeSensingFBGNeedle ):
     print( "Testing Temperature compensation function" )
 
     wls_zeros1 = np.zeros( ss_fbgneedle.num_signals )
@@ -165,13 +165,29 @@ def temperataure_compensation_test( ss_fbgneedle: ShapeSensingFBGNeedle ):
 
 # temperature_compensation_test
 
+def test_fbgneedle_functionality(ss_fbgneedle: ShapeSensingFBGNeedle):
+    print( "Testing FBG Needle functionaltiy" )
 
+    print( "Generate CH|AA:\n",          ss_fbgneedle.generate_ch_aa()[0] )
+    print( "Assignments AA:\n",          ss_fbgneedle.assignments_aa() )
+    print( "Assignments CH:\n",          ss_fbgneedle.assignments_ch() )
+    print( "Assignment Mask AA 2:\n",    ss_fbgneedle.assigment_mask_aa(2) )
+    print( "Assignment Mask CH 1:\n",    ss_fbgneedle.assigment_mask_ch(1) )
+    print( "Sensor Locations (Base):\n", ss_fbgneedle.sensor_location )
+    print( "Sensor Locations (Tip):\n",  ss_fbgneedle.sensor_location_tip )
+
+    print()
+
+# test_fbgneedle_functionality
 
 def main():
+
     ss_fbgneedle = ShapeSensingFBGNeedle.load_json( 'needle_params.json' )
     ss_fbgneedle.continuous_integration = True
     print( ss_fbgneedle )
     print()
+
+    test_fbgneedle_functionality(ss_fbgneedle)
 
     ss_fbgneedle.current_depth = 122.2
     ref = np.random.randint(
@@ -182,7 +198,7 @@ def main():
 
     ss_fbgneedle.update_wavelengths( ref, reference=True )
     ss_fbgneedle.update_wavelengths( wls )
-    temperataure_compensation_test( ss_fbgneedle )
+    temperature_compensation_test( ss_fbgneedle )
 
     # test straight needle insertion (Constant Curvature)
     print( 'Constant Curvature' )
