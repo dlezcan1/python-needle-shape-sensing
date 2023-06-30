@@ -715,9 +715,9 @@ class FBGNeedle( Needle ):
         """ Generate the CHX | AAY list
 
         """
-        channels            = [ f"CH{i}" for i in range( 1, num_channels + 1 ) ]
-        active_areas        = [ f"AA{i}" for i in range( 1, num_active_areas + 1 ) ]
-        channel_active_area = [ " | ".join( (ch, aa) ) for ch, aa in product( channels, active_areas ) ]
+        channels            = np.asarray([ f"CH{i}" for i in range( 1, num_channels + 1 ) ])
+        active_areas        = np.asarray([ f"AA{i}" for i in range( 1, num_active_areas + 1 ) ])
+        channel_active_area = np.asarray([ " | ".join( (ch, aa) ) for ch, aa in product( channels, active_areas ) ])
 
         return channel_active_area, channels, active_areas
 
