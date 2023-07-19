@@ -317,10 +317,10 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
             success = True
 
             if processed:
-                self.current_curvatures = self.curvatures_processed( self.current_wavelengths )
+                self.current_curvatures = 1e-3 * self.curvatures_processed( self.current_wavelengths )
 
             else:
-                self.current_curvatures = self.curvatures_raw(
+                self.current_curvatures = 1e-3 * self.curvatures_raw(
                         self.current_wavelengths, temp_comp=temp_comp )
 
         # if
