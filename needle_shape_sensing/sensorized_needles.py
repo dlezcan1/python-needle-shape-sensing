@@ -790,7 +790,7 @@ class FBGNeedle( Needle ):
 
         ref_wavelengths = None
         if "Reference Wavelengths" in data.keys():
-            ref_wavelengths = np.asarray( data[ 'Reference Wavelengths' ], dtype=np.float )
+            ref_wavelengths = np.asarray( data[ 'Reference Wavelengths' ], dtype=np.float64 )
 
         # if
 
