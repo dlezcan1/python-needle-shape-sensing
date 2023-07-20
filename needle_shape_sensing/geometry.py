@@ -244,7 +244,7 @@ def quat2rotm( q: np.ndarray ) -> np.ndarray:
     if np.linalg.norm( q ) > 0:
         q /= np.linalg.norm( q )  # ensure unit
     else:
-        q = np.array( [ 1, 0, 0, 0 ], dtype=np.float )
+        q = np.array( [ 1, 0, 0, 0 ], dtype=np.float64 )
 
     # unpack quaternion
     c, v = q[ 0 ], q[ 1:4 ]  # cos(theta/2), sin(theta/2) * w
@@ -304,7 +304,7 @@ def rotm2axangle( R: np.ndarray ) -> (float, np.ndarray):
     else:
         w = 1 / (2 * np.sin( theta )) * vee_so3( R - R.T )
 
-    return theta, w.astype( np.float )
+    return theta, w.astype( np.float64 )
 
 
 # rotm2axangle
