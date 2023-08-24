@@ -118,7 +118,9 @@ class AirDeflection:
         else:  # quadratic fit
             points = AirDeflection.shape_quadratic( s, insertion_point )
 
-        return points
+        Rmat = numerical.compute_orientation_from_shape(points)
+
+        return points, Rmat
 
     # shape
 
@@ -146,10 +148,10 @@ class AirDeflection:
         z = np.linspace( 0, z_ins, int( z_ins // dz ) + 1 )
 
         # compute points along z-axis
-        points_z = np.hstack(
-                (a_xy.reshape( 1, -1 ) * (z ** 3 - 3 * L_entry * z_ins ** 2).reshape( -1, 1 ),
-                 z.reshape( -1, 1 ))
-        )
+        points_z = np.hstack((
+            a_xy.reshape( 1, -1 ) * (z ** 3 - 3 * L_entry * z_ins ** 2).reshape( -1, 1 ),
+            z.reshape( -1, 1 )
+        ))
 
         L, _ = geometry.arclength( points_z, axis=0 )
 
@@ -179,10 +181,10 @@ class AirDeflection:
 
         # determine z-coordinates to use based on arclengths
         if a_xy_norm > 0:
-            s_tot = (z_ins * np.sqrt( 1 + 4 * (a_xy_norm ** 2) * (z_ins ** 2) ) + np.arcsinh(
-                    2 * a_xy_norm * z_ins
-            ) / (
-                             2 * a_xy_norm)) / 2
+            s_tot = 1/2 * (
+                z_ins * np.sqrt( 1 + 4 * (a_xy_norm ** 2) * (z_ins ** 2) ) 
+                + np.arcsinh(2 * a_xy_norm * z_ins) / ( 2 * a_xy_norm )
+            )
 
         # if
         else:  # straight needle
@@ -196,7 +198,10 @@ class AirDeflection:
         z = np.linspace( 0, z_ins, int( z_ins // dz + 1 ) )
 
         # compute 3D points
-        points_z = np.hstack( (a_xy.reshape( 1, -1 ) * z.reshape( -1, 1 ) ** 2, z.reshape( -1, 1 )) )
+        points_z = np.hstack((
+            a_xy.reshape( 1, -1 ) * z.reshape( -1, 1 ) ** 2, 
+            z.reshape( -1, 1 )
+        ))
 
         # interpolate to get s
         points, _ = numerical.interpolate_curve_s( points_z, s, axis=0 )

@@ -283,6 +283,61 @@ class NeedleParamOptimizations:
 
 # NeedleParamOptimizations
 
+def compute_orientation_from_shape(shape: np.ndarray):
+    """ Uses the shape to compute the orientation using the tangent, normal, and binormal vectors
+        from differentiable curves
+
+    Args:
+        shape: N x 3 shape matrix for computing the orientation matrix
+
+    Returns:
+        orientation: N x 3 x 3 orientation matrix
+
+    """
+    d_shape = np.diff(shape, 1, 0)
+    ds = np.linalg.norm(
+        d_shape,
+        ord=2,
+        axis=1,
+        keepdims=True,
+    )
+
+    tangent_vect  = d_shape / ds
+    tangent_vect  = np.concatenate(
+        (
+            np.array([[0, 0, 1]]),
+            tangent_vect
+        ),
+        axis=0
+    )
+    tangent_vect /= np.linalg.norm(tangent_vect, ord=2, axis=1, keepdims=True)
+
+    normal_vect  = np.diff(tangent_vect, 1, 0) / ds
+    normal_vect  = np.concatenate(
+        (
+            np.array([[1, 0, 0]]),
+            normal_vect
+        ),
+        axis=0
+    )
+    normal_vect /= np.linalg.norm(normal_vect, ord=2, axis=1, keepdims=True)
+
+    binormal_vect = np.cross(tangent_vect, normal_vect)
+
+    orientation = np.stack(
+        (
+            normal_vect,
+            binormal_vect,
+            tangent_vect,
+        ),
+        axis=2
+    )
+
+    return orientation
+
+# comptue_orientation_from_shape
+
+
 @jit( nopython=True, parallel=True )
 def jit_linear_interp1d( t: float, x_all: np.ndarray, t_all: np.ndarray, is_sorted: bool = False ):
     """ numba 1d linear interpolation"""
