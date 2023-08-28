@@ -302,27 +302,28 @@ def compute_orientation_from_shape(shape: np.ndarray):
         keepdims=True,
     )
 
-    tangent_vect  = d_shape / ds
-    tangent_vect  = np.concatenate(
+    tangent_vect = d_shape / ds
+    tangent_vect = np.concatenate(
         (
             np.array([[0, 0, 1]]),
             tangent_vect
         ),
         axis=0
     )
-    tangent_vect /= np.linalg.norm(tangent_vect, ord=2, axis=1, keepdims=True)
+    tangent_vect = normalize_orientations(tangent_vect)
 
-    normal_vect  = np.diff(tangent_vect, 1, 0) / ds
-    normal_vect  = np.concatenate(
+    normal_vect = np.diff(tangent_vect, 1, 0) / ds
+    normal_vect = np.concatenate(
         (
             np.array([[1, 0, 0]]),
             normal_vect
         ),
         axis=0
     )
-    normal_vect /= np.linalg.norm(normal_vect, ord=2, axis=1, keepdims=True)
+    normal_vect = normalize_orientations(normal_vect)
 
     binormal_vect = np.cross(tangent_vect, normal_vect)
+    binormal_vect = normalize_orientations(binormal_vect)
 
     orientation = np.stack(
         (
@@ -681,6 +682,43 @@ def interpolate_curve_s( points: np.ndarray, s_interp: np.ndarray, axis=0 ):
 
 
 # interpolate_curve_s
+
+def normalize_orientations(vects: np.ndarray):
+    """ Normalizes the orientation vectors
+
+    If vects[i] == [0, 0, 0], will find first non-zero vector vects[j] s.t. j < i
+
+    Args:
+        vects: N x 3 array of N, 3D vectors
+
+    Returns:
+        normalized_vects: N x 3 array of normalized 3D vectors
+    
+    """
+
+    norms = np.linalg.norm(vects, ord=2, axis=1, keepdims=True)
+
+    normalized_vects  = vects.copy()
+    mask_nz_zero_vect = np.ravel(norms > 0)
+    
+    normalized_vects[mask_nz_zero_vect] /= norms[mask_nz_zero_vect]
+
+    if np.all(mask_nz_zero_vect):
+        return normalized_vects
+    
+    # if
+
+    remappings = np.arange(normalized_vects.shape[0])
+    while np.any(norms[remappings] == 0):
+        remappings[np.ravel(norms[remappings] == 0)] -= 1
+
+    # while
+
+    normalized_vects = normalized_vects[remappings]
+
+    return normalized_vects
+
+# normalize_orientations
 
 
 def simpson_vec_int( f: np.ndarray, dx: float ) -> np.ndarray:
