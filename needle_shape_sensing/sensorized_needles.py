@@ -248,7 +248,7 @@ class FBGNeedle( Needle ):
 
         # property set-up (None so that they are set once)
         self._num_channels    = num_channels
-        self._sensor_location = np.asarray( sensor_location )
+        self._sensor_location = np.asarray( sensor_location, dtype=np.float64 )
         self._cal_matrices    = { }
         self._weights         = { }
         self.options          = dict()
