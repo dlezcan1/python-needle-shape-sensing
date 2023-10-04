@@ -852,24 +852,24 @@ class FBGNeedle( Needle ):
         data[ "# channels" ]     = self.num_channels
         data[ "# active areas" ] = self.num_activeAreas
 
-        if self.sensor_location:
-            data[ "Sensor Locations" ] = { }
+        if self.sensor_location is not None:
+            data[ "Sensor Locations" ] = dict()
             for i, l in enumerate( self.sensor_location, 1 ):
                 data[ "Sensor Locations" ][ str( i ) ] = l
 
             # for
         # if
 
-        if self.cal_matrices:
-            data[ "Calibration Matrices" ] = { }
+        if self.cal_matrices is not None:
+            data[ "Calibration Matrices" ] = dict()
             for k, cal_mat in self.cal_matrices.items():
                 data[ "Calibration Matrices" ][ k ] = cal_mat.tolist()
 
             # for
         # if
 
-        if self.weights:
-            data[ 'weights' ] = { }
+        if self.weights is not None:
+            data[ 'weights' ] = dict()
             for k, weight in self.weights.items():
                 data[ 'weights' ][ k ] = weight
 
