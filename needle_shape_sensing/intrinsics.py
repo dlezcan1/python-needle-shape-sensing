@@ -5,14 +5,21 @@ Library of needle shape sensing intrinic measurement functions
 Author: Dimitri Lezcano
 
 """
-
+from dataclasses import (
+    dataclass,
+    field,
+)
 from enum import Flag
 from typing import Union, Callable
 
 import numpy as np
+from numpy.typing import NDArray
 
-from needle_shape_sensing import numerical, geometry
 
+from needle_shape_sensing import (
+    geometry,
+    numerical,
+)
 
 class SHAPETYPE( Flag ):
     # first byte is for the number of bends, the second byte is for the number of layers ( - 1)
@@ -23,22 +30,22 @@ class SHAPETYPE( Flag ):
 
     def is_singlebend(self):
         return self.value & 0x10 == 0x00
-    
+
     # is_singlebend
 
     def is_doublebend(self):
         return self.value & 0x10 == 0x10
-    
+
     # is_doublebend
 
     def is_singlelayer(self):
         return self.value & 0x01 == 0x01
-    
+
     # is_singlelayer
 
     def is_doublelayer(self):
         return self.value & 0x02 == 0x02
-    
+
     # is_doublelayer
 
     def get_k0( self ):
@@ -182,7 +189,7 @@ class AirDeflection:
         # determine z-coordinates to use based on arclengths
         if a_xy_norm > 0:
             s_tot = 1/2 * (
-                z_ins * np.sqrt( 1 + 4 * (a_xy_norm ** 2) * (z_ins ** 2) ) 
+                z_ins * np.sqrt( 1 + 4 * (a_xy_norm ** 2) * (z_ins ** 2) )
                 + np.arcsinh(2 * a_xy_norm * z_ins) / ( 2 * a_xy_norm )
             )
 
@@ -199,7 +206,7 @@ class AirDeflection:
 
         # compute 3D points
         points_z = np.hstack((
-            a_xy.reshape( 1, -1 ) * z.reshape( -1, 1 ) ** 2, 
+            a_xy.reshape( 1, -1 ) * z.reshape( -1, 1 ) ** 2,
             z.reshape( -1, 1 )
         ))
 
@@ -299,10 +306,10 @@ class SingleBend:
     def k0_1layer( s: np.ndarray, kc: float, length: float, return_callable: bool = False ):
         """
         Intrinsics curvatures of the double layer insertion scenario
-        
+
         Original Author (MATLAB): Jin Seob Kim
         Translated Author: Dimitri Lezcano
-        
+
         :param s: numpy array of the arclengths
         :param kc: intrinsic curvature constant
         :param length: length of needle insertion
@@ -326,26 +333,26 @@ class SingleBend:
 
     @staticmethod
     def k0_2layer(
-        s: np.ndarray, 
-        kc_1: float, 
-        kc_2: float, 
-        length: float, 
+        s: np.ndarray,
+        kc_1: float,
+        kc_2: float,
+        length: float,
         s_crit: float,
         return_callable: bool = False,
     ):
         """
         Intrinsics curvatures of the double layer insertion scenario
-        
+
         Original Author (MATLAB): Jin Seob Kim
         Translated Author: Dimitri Lezcano
-        
+
         :param s: numpy array of the arclengths
         :param kc_1: intrinsic curvature constant for layer 1
         :param kc_2: intrinsic curvature constant for layer 2
         :param length: length of needle insertion
         :param s_crit: arclength where needle shape boundary is
         :param return_callable: (Default = False) returns the callable function
-        
+
         :returns: (k0(s), k0'(s)) numpy arrays of shape s.shape
         """
         if return_callable:
@@ -410,13 +417,13 @@ class SingleBend:
 
     @staticmethod
     def k0_3layer(
-        s: np.ndarray, 
-        kc_1: float, 
-        kc_2: float, 
-        kc_3: float, 
-        length: float, 
+        s: np.ndarray,
+        kc_1: float,
+        kc_2: float,
+        kc_3: float,
+        length: float,
         s_crit_1: float,
-        s_crit_2: float, 
+        s_crit_2: float,
         return_callable: bool = False,
     ):
         """
@@ -525,16 +532,16 @@ class SingleBend:
 
     @staticmethod
     def determine_2layer_boundary(
-        kc1: float, 
-        length: float, 
-        z_crit: float, 
-        B: np.ndarray, 
+        kc1: float,
+        length: float,
+        z_crit: float,
+        B: np.ndarray,
         w_init: np.ndarray = None,
-        s0: float = 0, 
-        ds: float = 0.5, 
+        s0: float = 0,
+        ds: float = 0.5,
         R_init: np.ndarray = np.eye( 3 ),
-        Binv: np.ndarray = None, 
-        needle_rotations: list = None, 
+        Binv: np.ndarray = None,
+        needle_rotations: list = None,
         continuous: bool = False,
     ):
         """
@@ -615,10 +622,10 @@ class SingleBend:
 class DoubleBend:
     @staticmethod
     def k0_1layer(
-        s: np.ndarray, 
-        kc: float, 
-        length: float, 
-        s_crit: float, 
+        s: np.ndarray,
+        kc: float,
+        length: float,
+        s_crit: float,
         p: float = 2 / 3,
         return_callable: bool = False,
     ):
@@ -700,3 +707,52 @@ class DoubleBend:
     # k0_1layer
 
 # class: DoubleBend
+
+
+@dataclass
+class ShapeModelParameters:
+    # numerical parameters
+    kc_1  : float               = None
+    kc_2  : float               = None
+    s_crit: float               = None
+    w_init: NDArray[np.float64] = None
+
+    shape_type: SHAPETYPE = None
+
+    def get_k0(self, s: np.ndarray=None, length: float=None, return_callable: bool = False):
+        
+        k0_fns = {
+            SHAPETYPE.CONSTANT_CURVATURE    : ConstantCurvature.k0(
+                s=s,
+                kc=self.kc_1,
+                return_callable=return_callable,
+            ),
+            SHAPETYPE.SINGLEBEND_SINGLELAYER: SingleBend.k0_1layer(
+                s=s,
+                kc=self.kc_1,
+                length=length,
+                return_callable=return_callable
+            ),
+            SHAPETYPE.SINGLEBEND_DOUBLELAYER: SingleBend.k0_2layer(
+                s=s,
+                kc_1=self.kc_1,
+                kc_2=self.kc_2,
+                length=length,
+                s_crit=self.s_crit,
+                return_callable=return_callable,
+            ),
+            SHAPETYPE.DOUBLEBEND_SINGLELAYER: DoubleBend.k0_1layer(
+                s=s,
+                kc=self.kc_1,
+                length=length,
+                s_crit=self.s_crit,
+                return_callable=return_callable,
+            ),
+        }
+
+
+        return k0_fns[self.shape_type]()
+
+    # get_k0
+
+# dataclass: ShapeModelParameters
