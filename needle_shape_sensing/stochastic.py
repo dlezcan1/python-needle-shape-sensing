@@ -34,8 +34,8 @@ class CurvatureDistribution:
 
     """
     def __init__(
-            self, 
-            data: Union[np.ndarray, cp.ndarray], 
+            self,
+            data: Union[np.ndarray, cp.ndarray],
             w_bounds: Tuple[float, float] = (-0.05, 0.05),
             dw: float = 0.001,
             ds: float = 0.5,
@@ -48,7 +48,7 @@ class CurvatureDistribution:
             ds,
             dtype=np.float64,
         )
-        
+
         self.dw = dw # FIXME: calculate dw
         assert w_bounds[0] < w_bounds[1], f"Lower bound must be first and < upper bound. {w_bounds[0]} is not < {w_bounds[1]}"
         self.curvature_grid = np.stack( # (3, N_1, N_2, N_3)
@@ -209,7 +209,7 @@ class CurvatureDistribution:
             self.data[idx] = data_slice
 
         return data_slice
-    
+
     # _normalize_slice
 
     def bayesian_fusion(self, other, inplace=False):
@@ -233,7 +233,7 @@ class CurvatureDistribution:
         fused._normalize(inplace=True)
 
         return fused
-    
+
     # bayesian_fusion_slice
 
     def copy(self):
@@ -245,16 +245,16 @@ class CurvatureDistribution:
 
     @classmethod
     def dirac_delta_init(
-        cls, 
-        w_init  : np.ndarray, 
-        N_s     : int, 
-        w_bounds: Tuple[float, float], 
-        dw      : float, 
-        ds      : float = 0.5, 
+        cls,
+        w_init  : np.ndarray,
+        N_s     : int,
+        w_bounds: Tuple[float, float],
+        dw      : float,
+        ds      : float = 0.5,
         cuda    : bool  = False,
     ):
         dist = cls.uniform_distribution(
-            N_s, 
+            N_s,
             w_bounds=w_bounds,
             dw=dw,
             ds=ds,
@@ -264,7 +264,7 @@ class CurvatureDistribution:
         # find the indices where w_init is
         diff = np.linalg.norm(dist.curvature_grid - w_init[:, np.newaxis, np.newaxis, np.newaxis], axis=0)
         idx  = np.argmin(
-            diff, 
+            diff,
             axis=None,
         )
         idx_1, idx_2, idx_3 = np.unravel_index(idx, diff.shape)
@@ -281,9 +281,9 @@ class CurvatureDistribution:
 
     @classmethod
     def uniform_distribution(
-        cls, 
-        N_s     : int, 
-        w_bounds: Tuple[float, float] = (-0.05, 0.05), 
+        cls,
+        N_s     : int,
+        w_bounds: Tuple[float, float] = (-0.05, 0.05),
         dw      : float               = 0.001,
         ds      : float               = 0.5,
         cuda    : bool                = False,
@@ -307,13 +307,13 @@ class CurvatureDistribution:
 # class: CurvatureDistribution
 
 class StochasticModel(ABC):
-    """ Abstract base class of stochastic modeling 
-    
+    """ Abstract base class of stochastic modeling
+
     Args:
         ds: arclength resolution (units: mm)
         dw: curvature resolution (units: 1/mm)
         w_bounds: curvature bounds (units: 1/mm)
-    
+
     """
     def __init__(
         self,
@@ -368,14 +368,14 @@ class StochasticModel(ABC):
 
     def copy(self):
         new = copy.copy(self)
-        
+
         if self.is_initialized:
             new.curvature_distribution = self.curvature_distribution.copy()
 
         # if
 
         return new
-    
+
     # copy
 
     def init_probability(self, w_init: np.ndarray = None):
@@ -433,7 +433,7 @@ class StochasticShapeModel(StochasticModel):
         )
         self.shape_model_params = shape_mdlp
         self.sigma_w            = sigma_curvature # uncertainty in curvature
-    
+
 
     # __init__
 
@@ -441,10 +441,21 @@ class StochasticShapeModel(StochasticModel):
     def _array_cls(self):
         if self.cuda:
             return cp
-        
+
         return np
-    
+
     # property: _array_cls
+
+    def posterior_update(s: float, prob: Union[np.ndarray, cp.ndarray]):
+        """ Update the probability with a measurement
+
+            *** To be extended by child class ***
+
+        """
+
+        return prob
+
+    # posterior_update
 
     def solve(self):
         """ Solve the stochastic shape model using the Fokker-Planck Equation"""
@@ -458,10 +469,10 @@ class StochasticShapeModel(StochasticModel):
 
         A0 = self.needle.bend_stiffness
         G0 = self.needle.torsional_stiffness
-        
+
         w_shape  = self.curvature_distribution.curvature_grid.shape[1:]
         N_sysmtx = self._array_cls.prod(w_shape)
-        
+
         # iterate over arclengths
         for l in range(1, self.curvature_distribution.s.shape[0]):
             s_l = self.curvature_distribution.s[l]
@@ -480,16 +491,16 @@ class StochasticShapeModel(StochasticModel):
             W_ijk       = self.curvature_distribution.curvature_grid[1:-1, 1:-1, 1:-1].reshape(3, -1)
             indices_ijk = np.stack(
                 np.meshgrid(
-                    np.arange(1, w_shape[0] - 1), 
-                    np.arange(1, w_shape[1] - 1), 
+                    np.arange(1, w_shape[0] - 1),
+                    np.arange(1, w_shape[1] - 1),
                     np.arange(1, w_shape[2] - 1),
-                ), 
+                ),
                 axis=0,
             ).reshape(*W_ijk.shape)
 
             # - raveled index arrays
             rindx_ijk = np.ravel_multi_index(indices_ijk, w_shape)
-            
+
             rindx_im1 = np.ravel_multi_index(indices_ijk - e1, w_shape)
             rindx_ip1 = np.ravel_multi_index(indices_ijk + e1, w_shape)
 
@@ -501,45 +512,45 @@ class StochasticShapeModel(StochasticModel):
 
             # - diagonal values
             system_matrix[rindx_ijk, rindx_ijk] =  (
-                1 / self.ds 
+                1 / self.ds
                 + 3 * (self.sigma_w / self.dw ) ** 2
             )
 
             # - (i-1) & (i+1)
             system_matrix[rindx_ijk, rindx_im1] = 1/2 * (
                 -(k0p_i + (A0-G0)/A0 * W_ijk[:, 1] * W_ijk[:, 2]) / self.dw
-                -(self.sigma_w / self.dw)**2 
+                -(self.sigma_w / self.dw)**2
             )
             system_matrix[rindx_ijk, rindx_ip1] = 1/2 * (
                 (k0p_i + (A0-G0)/A0 * W_ijk[:, 1] * W_ijk[:, 2]) / self.dw
-                -(self.sigma_w / self.dw)**2 
+                -(self.sigma_w / self.dw)**2
             )
 
             # - (j-1) & (j+1)
             system_matrix[rindx_ijk, rindx_jm1] = 1/2 * (
                 -(k0_i*W_ijk[2] + (G0-A0)/A0 * W_ijk[:, 0] * W_ijk[:, 2]) / self.dw
-                -(self.sigma_w / self.dw)**2 
+                -(self.sigma_w / self.dw)**2
             )
             system_matrix[rindx_ijk, rindx_jp1] = 1/2 * (
                 (k0_i*W_ijk[2] + (G0-A0)/A0 * W_ijk[:, 0] * W_ijk[:, 2]) / self.dw
-                -(self.sigma_w / self.dw)**2 
+                -(self.sigma_w / self.dw)**2
             )
 
             # - (k-1) & (k+1)
             system_matrix[rindx_ijk, rindx_km1] = 1/2 * (
                 (A0/G0 * k0_i * W_ijk[1]) / self.dw
-                -(self.sigma_w / self.dw)**2 
+                -(self.sigma_w / self.dw)**2
             )
             system_matrix[rindx_ijk, rindx_kp1] = 1/2 * (
                 -(A0/G0 * k0_i * W_ijk[1]) / self.dw
-                -(self.sigma_w / self.dw)**2 
+                -(self.sigma_w / self.dw)**2
             )
 
             # - multiply by ds
             system_matrix *= self.ds
 
             # - remove all zero rows (?) TODO
-            
+
             # generate update vector
             prob_lm1 = self.curvature_distribution.data[l-1].reshape(-1, )
 
@@ -547,17 +558,18 @@ class StochasticShapeModel(StochasticModel):
 
             # least squares solve
             prob_l   = self._array_cls.linalg.lstsq(
-                system_matrix, 
+                system_matrix,
                 prob_lm1,
-                rcond=None
+                rcond=None,
             )
 
             # update the current slice
-            self.curvature_distribution.data[l] = prob_l.reshape(w_shape)
-            
+            prob_prior = prob_l.reshape(w_shape)
+            self.curvature_distribution.data[l] = self.posterior_update(prob_prior)
+
             # normalize the slice
             self.curvature_distribution._normalize_slice(l, inplace=True)
-            
+
         # for
 
         # normalize the distribution (safety measure)
