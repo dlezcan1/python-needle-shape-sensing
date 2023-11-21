@@ -446,10 +446,14 @@ class StochasticShapeModel(StochasticModel):
 
     # property: _array_cls
 
-    def posterior_update(s: float, prob: Union[np.ndarray, cp.ndarray]):
+    def posterior_update(s_index: int, prob: Union[np.ndarray, cp.ndarray]):
         """ Update the probability with a measurement
 
             *** To be extended by child class ***
+
+            Args:
+                s_index: The arclength slice index
+                prob: probability slice @ s
 
         """
 
@@ -565,7 +569,7 @@ class StochasticShapeModel(StochasticModel):
 
             # update the current slice
             prob_prior = prob_l.reshape(w_shape)
-            self.curvature_distribution.data[l] = self.posterior_update(prob_prior)
+            self.curvature_distribution.data[l] = self.posterior_update(l, prob_prior)
 
             # normalize the slice
             self.curvature_distribution._normalize_slice(l, inplace=True)
