@@ -13,6 +13,8 @@ from typing import (
 import numpy as np
 import scipy as sp
 import cupy as cp
+import cupyx.scipy as cp_sp
+import cupyx.scipy.sparse.linalg # pyright: ignore
 from numba import (
     jit,
     cuda as nmb_cuda,
@@ -34,11 +36,11 @@ class CurvatureDistribution:
 
     """
     def __init__(
-            self,
-            data: Union[np.ndarray, cp.ndarray],
-            w_bounds: Tuple[float, float] = (-0.05, 0.05),
-            dw: float = 0.001,
-            ds: float = 0.5,
+            self, 
+            data    : Union[np.ndarray, cp.ndarray], 
+            w_bounds: Tuple[float, float]           = (-0.05, 0.05),
+            dw      : float                         = 0.001,
+            ds      : float                         = 0.5,
         ):
         self.data = data
         self.ds   = ds
@@ -48,8 +50,8 @@ class CurvatureDistribution:
             ds,
             dtype=np.float64,
         )
-
-        self.dw = dw # FIXME: calculate dw
+        
+        self.dw = dw # FIXME: calculate dw (? maybe not.)
         assert w_bounds[0] < w_bounds[1], f"Lower bound must be first and < upper bound. {w_bounds[0]} is not < {w_bounds[1]}"
         self.curvature_grid = np.stack( # (3, N_1, N_2, N_3)
             np.meshgrid(
@@ -378,9 +380,10 @@ class StochasticModel(ABC):
 
     # copy
 
-    def init_probability(self, w_init: np.ndarray = None):
+    def init_probability(self, w_init: np.ndarray = None, insertion_depth: float = None):
         """ Initializes the probability distribution. Needs to be called before usage."""
-        N_s=self.needle.length // self.ds + 1,
+        L   = self.needle.length if insertion_depth is None else min(insertion_depth, self.needle.length)
+        N_s = L // self.ds + 1,
         if w_init is None:
             self.curvature_distribution = CurvatureDistribution.uniform_distribution(
                 N_s=N_s,
@@ -418,6 +421,7 @@ class StochasticShapeModel(StochasticModel):
         self,
         needle             : Needle,
         shape_mdlp         : ShapeModelParameters,
+        insertion_depth    : float,
         ds                 : float               = 0.5,
         dw                 : float               = 0.002,
         w_bounds           : Tuple[float, float] = (-0.05, 0.05),
@@ -431,6 +435,7 @@ class StochasticShapeModel(StochasticModel):
             w_bounds=w_bounds,
             use_cuda=use_cuda
         )
+        self.insertion_depth    = insertion_depth
         self.shape_model_params = shape_mdlp
         self.sigma_w            = sigma_curvature # uncertainty in curvature
 
@@ -445,6 +450,22 @@ class StochasticShapeModel(StochasticModel):
         return np
 
     # property: _array_cls
+
+    @property
+    def _scipy_cls(self):
+        if self.cuda:
+            return cp_sp
+        
+        return sp
+        
+    # property: _scipy_cls
+
+    def init_probability(self, w_init: np.ndarray = None, insertion_depth: float = None):
+        if insertion_depth is not None:
+            self.insertion_depth = insertion_depth
+        return super().init_probability(w_init, insertion_depth=self.insertion_depth)
+    
+    # init_probability
 
     def posterior_update(s_index: int, prob: Union[np.ndarray, cp.ndarray]):
         """ Update the probability with a measurement
@@ -463,6 +484,8 @@ class StochasticShapeModel(StochasticModel):
 
     def solve(self):
         """ Solve the stochastic shape model using the Fokker-Planck Equation"""
+        assert self.is_initialized, "Probability needs to be initialized! Initialize with '.init_probability' function"
+
         # kappa 0 function
         k0_fn = self.shape_model_params.get_k0(return_callable=True)
 
@@ -485,10 +508,9 @@ class StochasticShapeModel(StochasticModel):
             k0_i, k0p_i = k0_fn(s_l)
 
             # generate system matrix
-            # TODO: update to a sparse array
-            system_matrix = self._array_cls.zeros(
+            system_matrix = sp.sparse.dok_matrix(
                 (N_sysmtx, N_sysmtx),
-                dtype=self.curvature_distribution.data.dtype,
+                self.curvature_distribution.dtype,
             )
 
             # - generate index arrays
@@ -561,10 +583,10 @@ class StochasticShapeModel(StochasticModel):
             # - remove boundary (?) TODO
 
             # least squares solve
-            prob_l   = self._array_cls.linalg.lstsq(
-                system_matrix,
+            system_matrix = self._scipy_cls.sparse.coo_matrix(system_matrix)
+            prob_l   = self._scipy_cls.sparse.linalg.spsove(
+                system_matrix, 
                 prob_lm1,
-                rcond=None,
             )
 
             # update the current slice

@@ -13,6 +13,43 @@
             "justMyCode": true
         },
         {
+            "name": "Run Stochastic Shape Model: CPU",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--needle-json", "${workspaceFolder}/data/stochastic_model_test.json", // TODO
+                "--odir", "/tmp/stochastic-shape-results-cpu",
+                "--kc", "0.0025508",
+                "--insertion-depth", "90",
+                "--ds", "0.5",
+                "--dw", "0.002",
+                "--w-bounds", "-0.05", "0.05",
+                "--std-curvature", "0.0005",
+            ]
+        },
+        {
+            "name": "Run Stochastic Shape Model: GPU",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--needle-json", "${workspaceFolder}/data/stochastic_model_test.json", // TODO
+                "--odir", "/tmp/stochastic-shape-results-gpu",
+                "--gpu",
+                "--kc", "0.0025508",
+                "--insertion-depth", "90",
+                "--ds", "0.5",
+                "--dw", "0.002",
+                "--w-bounds", "-0.05", "0.05",
+                "--std-curvature", "0.0005",
+            ]
+        },
+        {
             "name": "Build MCF Needle",
             "type": "python",
             "request": "launch",
@@ -21,12 +58,18 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--material", "nitinol",
-                "--needle-gauge", "18G", 
-                "--mcf-central-core-ch", "4",
+                "--material",
+                "nitinol",
+                "--needle-gauge",
+                "18G",
+                "--mcf-central-core-ch",
+                "4",
                 "200", // length
                 "4", // number of channels
-                "10", "35", "70", "100", // sensor locations
+                "10",
+                "35",
+                "70",
+                "100", // sensor locations
                 "1",
             ]
         },

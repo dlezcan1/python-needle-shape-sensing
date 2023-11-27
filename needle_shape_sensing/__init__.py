@@ -9,5 +9,6 @@ from needle_shape_sensing import (
     numerical,
     sensorized_needles,
     shape_sensing,
+    stochastic,
 )
 

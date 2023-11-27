@@ -1,0 +1,14 @@
+{
+    "serial number": "3CH-3AA-TEST-STOCHASTIC",
+    "length": 90.0,
+    "diameter": 0.9,
+    "Emod": 200000,
+    "pratio": 0.29,
+    "# channels": 3,
+    "# active areas": 3,
+    "Sensor Locations": {
+        "1": 10.0,
+        "2": 40.0,
+        "3": 75.0
+    }
+}
