@@ -498,7 +498,7 @@ class StochasticShapeModel(StochasticModel):
         G0 = self.needle.torsional_stiffness
 
         w_shape  = self.curvature_distribution.curvature_grid.shape[1:]
-        N_sysmtx = self._array_cls.prod(w_shape)
+        N_sysmtx = np.prod(w_shape)
 
         # iterate over arclengths
         self._timer.reset()
