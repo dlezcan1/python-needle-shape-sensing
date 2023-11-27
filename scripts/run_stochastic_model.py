@@ -3,6 +3,7 @@ import logging
 import os
 
 import numpy as np
+import pandas as pd
 
 from needle_shape_sensing.intrinsics import (
     SHAPETYPE,
@@ -114,6 +115,14 @@ def __parse_args(args=None):
     if ARGS.std_fbg_measurement is None:
         ARGS.std_fbg_measurement = 2 * ARGS.std_curvature
 
+    if ARGS.odir is not None:
+        device = "gpu" if ARGS.gpu else "cpu"
+        ARGS.odir = f"{ARGS.odir}-{device}"
+
+    # if
+
+    logging.getLogger().setLevel(logging.INFO)
+
     return ARGS
 
 # __parse_args
@@ -139,7 +148,7 @@ def main(args=None):
     )
     
     stochastic_model.init_probability(
-        w_init=ARGS.winit,
+        w_init=np.asarray(ARGS.winit),
     )
 
     logging.log(logging.INFO, "Beginning to solve stochastic needle shape")
@@ -153,6 +162,15 @@ def main(args=None):
         ofile = os.path.join(ARGS.odir, "curvature_distribution.npz"),
         np.savez(ofile, solved_distribution)
         logging.log(logging.INFO, f"Saved curvature distribution to: {ofile}")
+
+        # save the statistics
+        ofile = os.path.join(ARGS.odir, "benchmark_results.csv")
+        pd.DataFrame.from_dict(
+            {
+                "total elapsed time (secs)"   : [stochastic_model._timer.total_elapsed_time.total_seconds()],
+                "average time per loop (secs)": [stochastic_model._timer.averaged_dt.total_seconds()],
+            }
+        ).to_csv(ofile)
 
     # if
 

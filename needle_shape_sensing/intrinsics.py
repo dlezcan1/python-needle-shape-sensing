@@ -722,18 +722,18 @@ class ShapeModelParameters:
     def get_k0(self, s: np.ndarray=None, length: float=None, return_callable: bool = False):
         
         k0_fns = {
-            SHAPETYPE.CONSTANT_CURVATURE    : ConstantCurvature.k0(
+            SHAPETYPE.CONSTANT_CURVATURE.value    : lambda: ConstantCurvature.k0(
                 s=s,
                 kc=self.kc_1,
                 return_callable=return_callable,
             ),
-            SHAPETYPE.SINGLEBEND_SINGLELAYER: SingleBend.k0_1layer(
+            SHAPETYPE.SINGLEBEND_SINGLELAYER.value: lambda: SingleBend.k0_1layer(
                 s=s,
                 kc=self.kc_1,
                 length=length,
                 return_callable=return_callable
             ),
-            SHAPETYPE.SINGLEBEND_DOUBLELAYER: SingleBend.k0_2layer(
+            SHAPETYPE.SINGLEBEND_DOUBLELAYER.value: lambda: SingleBend.k0_2layer(
                 s=s,
                 kc_1=self.kc_1,
                 kc_2=self.kc_2,
@@ -741,7 +741,7 @@ class ShapeModelParameters:
                 s_crit=self.s_crit,
                 return_callable=return_callable,
             ),
-            SHAPETYPE.DOUBLEBEND_SINGLELAYER: DoubleBend.k0_1layer(
+            SHAPETYPE.DOUBLEBEND_SINGLELAYER.value: lambda: DoubleBend.k0_1layer(
                 s=s,
                 kc=self.kc_1,
                 length=length,
@@ -751,7 +751,7 @@ class ShapeModelParameters:
         }
 
 
-        return k0_fns[self.shape_type]()
+        return k0_fns[self.shape_type.value]()
 
     # get_k0
 

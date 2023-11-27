@@ -9,6 +9,7 @@ from typing import (
     Tuple,
     Union,
 )
+import logging
 
 import numpy as np
 import scipy as sp
@@ -20,6 +21,7 @@ from numba import (
     cuda as nmb_cuda,
 )
 
+from needle_shape_sensing import benchmarking
 from needle_shape_sensing.sensorized_needles import (
     Needle,
     FBGNeedle,
@@ -185,8 +187,8 @@ class CurvatureDistribution:
 
     def _normalize(self, inplace=True):
         data               = self.data.copy()
-        mask_nonzero       = data.sum(axis=0) > 0
-        data[mask_nonzero] = data[mask_nonzero] / self.data[mask_nonzero].sum(axis=0, keepdims=True)
+        mask_nonzero       = data.sum(axis=(1, 2, 3)) > 0
+        data[mask_nonzero] = data[mask_nonzero] / self.data[mask_nonzero].sum(axis=(1,2,3), keepdims=True)
         if inplace:
             self.data = data
             return self
@@ -290,7 +292,7 @@ class CurvatureDistribution:
         ds      : float               = 0.5,
         cuda    : bool                = False,
     ):
-        N_w = abs(w_bounds[1] - w_bounds[0]) // dw + 1
+        N_w  = round(abs(w_bounds[1] - w_bounds[0]) // dw + 1)
         data = np.ones((N_s, N_w, N_w, N_w), dtype=np.float64)
         if cuda:
             data = cp.asarray(data)
@@ -361,9 +363,7 @@ class StochasticModel(ABC):
     @property
     def is_initialized(self):
         return (
-            self.s is not None
-            and self.curvature_grid is not None
-            and self.curvature_distribution is not None
+            self.curvature_distribution is not None
         )
 
     # property: is_initalized
@@ -383,7 +383,7 @@ class StochasticModel(ABC):
     def init_probability(self, w_init: np.ndarray = None, insertion_depth: float = None):
         """ Initializes the probability distribution. Needs to be called before usage."""
         L   = self.needle.length if insertion_depth is None else min(insertion_depth, self.needle.length)
-        N_s = L // self.ds + 1,
+        N_s = round(L // self.ds + 1)
         if w_init is None:
             self.curvature_distribution = CurvatureDistribution.uniform_distribution(
                 N_s=N_s,
@@ -395,7 +395,7 @@ class StochasticModel(ABC):
 
         else:
             self.curvature_distribution = CurvatureDistribution.dirac_delta_init(
-                w_init=w_init,
+                w_init=np.asarray(w_init, dtype=np.float64),
                 N_s=N_s,
                 w_bounds=self.w_bounds,
                 dw=self.dw,
@@ -438,7 +438,7 @@ class StochasticShapeModel(StochasticModel):
         self.insertion_depth    = insertion_depth
         self.shape_model_params = shape_mdlp
         self.sigma_w            = sigma_curvature # uncertainty in curvature
-
+        self._timer             = benchmarking.Timer()
 
     # __init__
 
@@ -487,7 +487,7 @@ class StochasticShapeModel(StochasticModel):
         assert self.is_initialized, "Probability needs to be initialized! Initialize with '.init_probability' function"
 
         # kappa 0 function
-        k0_fn = self.shape_model_params.get_k0(return_callable=True)
+        k0_fn, k0p_fn = self.shape_model_params.get_k0(length=self.insertion_depth, return_callable=True)
 
         # helper variables
         e1 = np.reshape([1, 0, 0], (-1, 1))
@@ -501,20 +501,22 @@ class StochasticShapeModel(StochasticModel):
         N_sysmtx = self._array_cls.prod(w_shape)
 
         # iterate over arclengths
+        self._timer.reset()
         for l in range(1, self.curvature_distribution.s.shape[0]):
+            logging.log(logging.INFO, f"Starting iteration: {l}")
             s_l = self.curvature_distribution.s[l]
 
             # get kappa0 and kappa0_prime
-            k0_i, k0p_i = k0_fn(s_l)
+            k0_i, k0p_i = k0_fn(s_l), k0p_fn(s_l)
 
             # generate system matrix
             system_matrix = sp.sparse.dok_matrix(
                 (N_sysmtx, N_sysmtx),
-                self.curvature_distribution.dtype,
+                self.curvature_distribution.data.dtype,
             )
 
             # - generate index arrays
-            W_ijk       = self.curvature_distribution.curvature_grid[1:-1, 1:-1, 1:-1].reshape(3, -1)
+            W_ijk       = self.curvature_distribution.curvature_grid[:, 1:-1, 1:-1, 1:-1].reshape(3, -1)
             indices_ijk = np.stack(
                 np.meshgrid(
                     np.arange(1, w_shape[0] - 1),
@@ -538,28 +540,28 @@ class StochasticShapeModel(StochasticModel):
 
             # - diagonal values
             system_matrix[rindx_ijk, rindx_ijk] =  (
-                1 / self.ds
-                + 3 * (self.sigma_w / self.dw ) ** 2
+                1 / self.ds 
+                + 3 * (self.sigma_w / self.dw) ** 2
             )
 
             # - (i-1) & (i+1)
             system_matrix[rindx_ijk, rindx_im1] = 1/2 * (
-                -(k0p_i + (A0-G0)/A0 * W_ijk[:, 1] * W_ijk[:, 2]) / self.dw
-                -(self.sigma_w / self.dw)**2
+                -(k0p_i + (A0-G0)/A0 * W_ijk[1] * W_ijk[2]) / self.dw
+                -(self.sigma_w / self.dw)**2 
             )
             system_matrix[rindx_ijk, rindx_ip1] = 1/2 * (
-                (k0p_i + (A0-G0)/A0 * W_ijk[:, 1] * W_ijk[:, 2]) / self.dw
-                -(self.sigma_w / self.dw)**2
+                (k0p_i + (A0-G0)/A0 * W_ijk[1] * W_ijk[2]) / self.dw
+                -(self.sigma_w / self.dw)**2 
             )
 
             # - (j-1) & (j+1)
             system_matrix[rindx_ijk, rindx_jm1] = 1/2 * (
-                -(k0_i*W_ijk[2] + (G0-A0)/A0 * W_ijk[:, 0] * W_ijk[:, 2]) / self.dw
-                -(self.sigma_w / self.dw)**2
+                -(k0_i*W_ijk[2] + (G0-A0)/A0 * W_ijk[0] * W_ijk[2]) / self.dw
+                -(self.sigma_w / self.dw)**2 
             )
             system_matrix[rindx_ijk, rindx_jp1] = 1/2 * (
-                (k0_i*W_ijk[2] + (G0-A0)/A0 * W_ijk[:, 0] * W_ijk[:, 2]) / self.dw
-                -(self.sigma_w / self.dw)**2
+                (k0_i*W_ijk[2] + (G0-A0)/A0 * W_ijk[0] * W_ijk[2]) / self.dw
+                -(self.sigma_w / self.dw)**2 
             )
 
             # - (k-1) & (k+1)
@@ -583,8 +585,8 @@ class StochasticShapeModel(StochasticModel):
             # - remove boundary (?) TODO
 
             # least squares solve
-            system_matrix = self._scipy_cls.sparse.coo_matrix(system_matrix)
-            prob_l   = self._scipy_cls.sparse.linalg.spsove(
+            system_matrix = self._scipy_cls.sparse.csr_matrix(system_matrix)
+            prob_l   = self._scipy_cls.sparse.linalg.spsolve(
                 system_matrix, 
                 prob_lm1,
             )
@@ -595,11 +597,22 @@ class StochasticShapeModel(StochasticModel):
 
             # normalize the slice
             self.curvature_distribution._normalize_slice(l, inplace=True)
+            self._timer.update()
 
+            logging.log(
+                logging.INFO,
+                f"[PROGRESS OF STOCHASTIC MODEL] Iteration: {l}"
+                f", dt: {self._timer.last_dt}"
+                f", ETC: {self._timer.estimate_time_to_completion(averaged_dt=True)}"
+            )
+
+            
         # for
 
         # normalize the distribution (safety measure)
         self.curvature_distribution._normalize(inplace=True)
+
+        print(logging.log(logging.INFO, f"Stochastic model solving complete. Total elapsed time: {self._timer.total_elapsed_time}"))
 
         return self.curvature_distribution
 
