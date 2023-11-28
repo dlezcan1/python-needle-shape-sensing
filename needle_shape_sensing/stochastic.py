@@ -1,11 +1,9 @@
 from abc import (
     ABC,
     abstractmethod,
-    abstractclassmethod,
 )
 import copy
 from typing import (
-    Dict,
     Tuple,
     Union,
 )
@@ -16,15 +14,10 @@ import scipy as sp
 import cupy as cp
 import cupyx.scipy as cp_sp
 import cupyx.scipy.sparse.linalg # pyright: ignore
-from numba import (
-    jit,
-    cuda as nmb_cuda,
-)
 
 from needle_shape_sensing import benchmarking
 from needle_shape_sensing.sensorized_needles import (
     Needle,
-    FBGNeedle,
 )
 from needle_shape_sensing.intrinsics import (
     ShapeModelParameters,

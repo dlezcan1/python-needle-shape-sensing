@@ -21,6 +21,9 @@ setup(
                 'torchvision',
                 'torchaudio',
                 'needle-shape-sensing',
+                'tqdm',
+                'pandas',
+                'cupy',
         ],
         classifiers=[
                 'Operating System :: OS Independent',
