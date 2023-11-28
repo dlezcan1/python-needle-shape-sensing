@@ -467,7 +467,7 @@ class StochasticShapeModel(StochasticModel):
     
     # init_probability
 
-    def posterior_update(s_index: int, prob: Union[np.ndarray, cp.ndarray]):
+    def posterior_update(self, s_index: int, prob: Union[np.ndarray, cp.ndarray]):
         """ Update the probability with a measurement
 
             *** To be extended by child class ***
@@ -499,10 +499,11 @@ class StochasticShapeModel(StochasticModel):
 
         w_shape  = self.curvature_distribution.curvature_grid.shape[1:]
         N_sysmtx = np.prod(w_shape)
+        N_s      = self.curvature_distribution.s.shape[0]
 
         # iterate over arclengths
         self._timer.reset()
-        for l in range(1, self.curvature_distribution.s.shape[0]):
+        for l in range(1, N_s):
             logging.log(logging.INFO, f"Starting iteration: {l}")
             s_l = self.curvature_distribution.s[l]
 
@@ -537,6 +538,8 @@ class StochasticShapeModel(StochasticModel):
 
             rindx_km1 = np.ravel_multi_index(indices_ijk - e3, w_shape)
             rindx_kp1 = np.ravel_multi_index(indices_ijk + e3, w_shape)
+
+            # FIXME: update with threading for optimized results
 
             # - diagonal values
             system_matrix[rindx_ijk, rindx_ijk] =  (
@@ -603,7 +606,7 @@ class StochasticShapeModel(StochasticModel):
                 logging.INFO,
                 f"[PROGRESS OF STOCHASTIC MODEL] Iteration: {l}"
                 f", dt: {self._timer.last_dt}"
-                f", ETC: {self._timer.estimate_time_to_completion(averaged_dt=True)}"
+                f", ETC: {self._timer.estimate_time_to_completion(N_s - l, averaged_dt=True)}"
             )
 
             
@@ -612,7 +615,7 @@ class StochasticShapeModel(StochasticModel):
         # normalize the distribution (safety measure)
         self.curvature_distribution._normalize(inplace=True)
 
-        print(logging.log(logging.INFO, f"Stochastic model solving complete. Total elapsed time: {self._timer.total_elapsed_time}"))
+        logging.log(logging.INFO, f"Stochastic model solving complete. Total elapsed time: {self._timer.total_elapsed_time}")
 
         return self.curvature_distribution
 

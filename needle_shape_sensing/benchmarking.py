@@ -43,7 +43,7 @@ class Timer:
     # reset
 
     def update(self):
-        new_t         = time.time()
+        new_t         = datetime.datetime.now()
         self.last_dt  = new_t - self.t
         self.t        = new_t
         self.counter += 1
