@@ -8,6 +8,7 @@ from typing import (
     Union,
 )
 import logging
+import tqdm
 
 import numpy as np
 import scipy as sp
@@ -41,7 +42,7 @@ class CurvatureDistribution:
         self.ds   = ds
         self.s    = np.arange(
             0,
-            (self.data.shape[0] + 1) * self.ds,
+            (self.data.shape[0]) * self.ds,
             ds,
             dtype=np.float64,
         )
@@ -475,7 +476,7 @@ class StochasticShapeModel(StochasticModel):
 
     # posterior_update
 
-    def solve(self):
+    def solve(self, progress_bar: bool = False):
         """ Solve the stochastic shape model using the Fokker-Planck Equation"""
         assert self.is_initialized, "Probability needs to be initialized! Initialize with '.init_probability' function"
 
@@ -496,8 +497,14 @@ class StochasticShapeModel(StochasticModel):
 
         # iterate over arclengths
         self._timer.reset()
-        for l in range(1, N_s):
-            logging.log(logging.INFO, f"Starting iteration: {l}")
+        for l in tqdm.tqdm(
+            range(1, N_s), 
+            total=N_s - 1, 
+            desc="[Solving Stochastic Model]",
+            ncols=100,
+            disable=not progress_bar,
+        ):
+            logging.log(logging.DEBUG, f"Starting iteration: {l}")
             s_l = self.curvature_distribution.s[l]
 
             # get kappa0 and kappa0_prime
@@ -582,13 +589,13 @@ class StochasticShapeModel(StochasticModel):
 
             # least squares solve
             system_matrix = self._scipy_cls.sparse.csr_matrix(system_matrix)
-            prob_l   = self._scipy_cls.sparse.linalg.spsolve(
+            prob_l        = self._scipy_cls.sparse.linalg.spsolve(
                 system_matrix, 
                 prob_lm1,
             )
 
             # update the current slice
-            prob_prior = prob_l.reshape(w_shape)
+            prob_prior                          = prob_l.reshape(w_shape)
             self.curvature_distribution.data[l] = self.posterior_update(l, prob_prior)
 
             # normalize the slice
@@ -596,7 +603,7 @@ class StochasticShapeModel(StochasticModel):
             self._timer.update()
 
             logging.log(
-                logging.INFO,
+                logging.DEBUG,
                 f"[PROGRESS OF STOCHASTIC MODEL] Iteration: {l}"
                 f", dt: {self._timer.last_dt}"
                 f", ETC: {self._timer.estimate_time_to_completion(N_s - l, averaged_dt=True)}"

@@ -152,7 +152,7 @@ def main(args=None):
     )
 
     logging.log(logging.INFO, "Beginning to solve stochastic needle shape")
-    solved_distribution = stochastic_model.solve()
+    solved_distribution = stochastic_model.solve(progress_bar=True)
     logging.log(logging.INFO, "Completed solving stochastic needle shape")
 
     if ARGS.odir is not None:
