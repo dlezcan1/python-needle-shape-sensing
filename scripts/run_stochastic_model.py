@@ -159,7 +159,7 @@ def main(args=None):
         os.makedirs(ARGS.odir, exist_ok=True)
 
         # save the curvature distribution
-        ofile = os.path.join(ARGS.odir, "curvature_distribution.npz"),
+        ofile = os.path.join(ARGS.odir, "curvature_distribution.npz")
         np.savez(ofile, solved_distribution)
         logging.log(logging.INFO, f"Saved curvature distribution to: {ofile}")
 
@@ -171,6 +171,7 @@ def main(args=None):
                 "average time per loop (secs)": [stochastic_model._timer.averaged_dt.total_seconds()],
             }
         ).to_csv(ofile)
+        logging.log(logging.INFO, f"Saved timing statistics to: {ofile}")
 
     # if
 
