@@ -2,7 +2,7 @@
 
 python3 /home/dlezcan1/dev/git/python-needle-shape-sensing/scripts/run_stochastic_model.py \
     --needle-json /home/dlezcan1/dev/git/python-needle-shape-sensing/data/stochastic_model_test.json \
-    --odir /tmp/stochastic-shape-results \
+    --odir /home/dlezcan1/data/stochastic-needle-model/stochastic-shape-results \
     --kc 0.0025508 \
     --insertion-depth 90 \
     --ds 0.5 \
