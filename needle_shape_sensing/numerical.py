@@ -35,10 +35,11 @@ class NeedleParamOptimizations:
 
         # optimizer options
         default_options = {
-                'w_init_bounds': [ (-0.01, 0.01) ] * 3,
-                'kc_bounds'    : [ (0, 0.01) ],
-                'tol'          : 1e-8
-                }
+            'w_init_bounds': [ (-0.01, 0.01) ] * 3,
+            'kc_bounds'    : [ (0, 0.01) ],
+            'tol'          : 1e-8,
+            'method'       : 'SLSQP',
+            }
         self.options = default_options
         self.options.update( optim_options if optim_options is not None else { } )
 
@@ -122,11 +123,16 @@ class NeedleParamOptimizations:
                 scalef=1, arg_check=True, **cost_kwargs )
         c_f = 1 / c_0 if c_0 > 0 else 1
         cost_fn = lambda eta: cost_functions.singlebend_singlelayer_cost(
-                eta, data_ins, s_data_ins, self.ds,
-                self.fbg_needle.B,
-                scalef=c_f, arg_check=False,
-                continuous=self.continuous,
-                **cost_kwargs )
+            eta=eta,
+            data=data_ins,
+            s_m=s_data_ins,
+            ds=self.ds,
+            B=self.fbg_needle.B,
+            scalef=c_f,
+            arg_check=False,
+            continuous=self.continuous,
+            **cost_kwargs
+        )
         res = self.__optimize( cost_fn, eta_0, **kwargs )
         kc, w_init = res.x[ 0 ], res.x[ 1:4 ]
 
@@ -261,10 +267,16 @@ class NeedleParamOptimizations:
         # filter specific bounds and add bounds if not already specified
         exclude_keys = [ 'w_init_bounds', 'kc_bounds', 'needle_rotations' ]
         optim_options = dict(
-                filter( lambda x: x[ 0 ] not in exclude_keys, optim_options.items() ) )
+            filter(
+                lambda x: x[ 0 ] not in exclude_keys,
+                optim_options.items()
+            )
+        )
         if optim_options.get( 'bounds' ) is None:
-            bounds = self.options[ 'kc_bounds' ] * (eta_0.size - 3) + self.options[
-                'w_init_bounds' ]
+            bounds = (
+                self.options[ 'kc_bounds' ] * (eta_0.size - 3) 
+                + self.options[ 'w_init_bounds' ]
+            )
             optim_options[ 'bounds' ] = bounds
 
         # bounds
@@ -272,6 +284,7 @@ class NeedleParamOptimizations:
         # perform optimization
         with warnings.catch_warnings():
             warnings.simplefilter( "ignore", scipy.integrate.odepack.ODEintWarning )
+            warnings.simplefilter( "ignore", RuntimeWarning )
             result = spoptim.minimize( cost_fn, eta_0, **optim_options )
 
         # with
@@ -693,19 +706,19 @@ def normalize_orientations(vects: np.ndarray):
 
     Returns:
         normalized_vects: N x 3 array of normalized 3D vectors
-    
+
     """
 
     norms = np.linalg.norm(vects, ord=2, axis=1, keepdims=True)
 
     normalized_vects  = vects.copy()
     mask_nz_zero_vect = np.ravel(norms > 0)
-    
+
     normalized_vects[mask_nz_zero_vect] /= norms[mask_nz_zero_vect]
 
     if np.all(mask_nz_zero_vect):
         return normalized_vects
-    
+
     # if
 
     remappings = np.arange(normalized_vects.shape[0])
