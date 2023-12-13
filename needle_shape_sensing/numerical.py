@@ -39,10 +39,7 @@ class NeedleParamOptimizations:
             'kc_bounds'    : [ (0, 0.01) ],
             'tol'          : 1e-8,
             'method'       : 'SLSQP',
-            'options'      : {
-                'maxiter' : 15,
-            },
-        }
+            }
         self.options = default_options
         self.options.update( optim_options if optim_options is not None else { } )
 
