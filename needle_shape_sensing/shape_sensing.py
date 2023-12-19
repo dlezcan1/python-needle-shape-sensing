@@ -27,7 +27,8 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
         self.insertion_parameters = dict()
 
         # define needle shape-sensing optimizers
-        self.optimizer = numerical.NeedleParamOptimizations(
+        self._update_orientation_needle_airgap = True
+        self.optimizer                         = numerical.NeedleParamOptimizations(
             self,
             ds=ds,
             optim_options=optim_options,
@@ -340,9 +341,18 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
         # if
 
         # stack the air layer
-        if (pmat_air is not None) and (Rmat_air is not None) and (wv_air is not None):
-            pmat = pmat @ Rmat_air[-1].T  + pmat_air[np.newaxis, -1]
-            Rmat = Rmat_air[np.newaxis, -1] @ Rmat
+        if (
+            (pmat_air is not None) 
+            and (Rmat_air is not None) 
+            and (wv_air is not None)
+        ):
+            if self._update_orientation_needle_airgap:
+                pmat = pmat @ Rmat_air[-1].T  + pmat_air[np.newaxis, -1]
+                Rmat = Rmat_air[np.newaxis, -1] @ Rmat
+
+            # if
+            else:
+                pmat = pmat + pmat_air[np.newaxis, -1]
 
             pmat = np.concatenate((pmat_air, pmat[1:]), axis=0)
             Rmat = np.concatenate((Rmat_air, Rmat[1:]), axis=0)
