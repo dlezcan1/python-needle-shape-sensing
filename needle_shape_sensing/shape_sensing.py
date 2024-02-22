@@ -1,6 +1,6 @@
 import numpy as np
 
-from needle_shape_sensing import numerical, intrinsics, geometry, sensorized_needles
+from needle_shape_sensing import numerical, intrinsics, geometry, sensorized_needles, shape_optimizers
 
 
 class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
@@ -28,7 +28,7 @@ class ShapeSensingFBGNeedle( sensorized_needles.FBGNeedle ):
 
         # define needle shape-sensing optimizers
         self._update_orientation_needle_airgap = True
-        self.optimizer                         = numerical.NeedleParamOptimizations(
+        self.optimizer                         = shape_optimizers.NeedleParamOptimizations(
             self,
             ds=ds,
             optim_options=optim_options,
