@@ -1,13 +1,20 @@
 import warnings
 
+from typing import (
+    Dict,
+    List,
+    Tuple,
+)
+
 import numpy as np
 import scipy.integrate.odepack
 import scipy.optimize as spoptim
 
-from needle_shape_sensing import cost_functions
+from needle_shape_sensing import cost_functions, intrinsics
 from needle_shape_sensing.sensorized_needles import FBGNeedle
 
 class NeedleParamOptimizations:
+    warnings.warn("NeedleParamOptimizations is legacy. Move to NeedleShapeOptimizer Class", DeprecationWarning, stacklevel=2)
     def __init__(
             self, fbgneedle: FBGNeedle, ds: float = 0.5, optim_options: dict = None,
             continuous: bool = True ):
@@ -89,7 +96,7 @@ class NeedleParamOptimizations:
         if len( self.fbg_needle.weights ) > 0:
             weights = np.array(
                     [ self.fbg_needle.weights[ key ] for (key, inserted) in
-                      zip( self.fbg_needle.weights.keys(), inserted_sensors ) if inserted ] )
+                      zip( self.fbg_needle.weights.keysShape(), inserted_sensors ) if inserted ] )
         # if
         else:
             weights = None
@@ -282,3 +289,88 @@ class NeedleParamOptimizations:
 
 
 # NeedleParamOptimizations
+    
+class NeedleShapeOptimizer:
+    def __init__(
+        self, 
+        fbgneedle: FBGNeedle, 
+        ds: float = 0.5, 
+        optim_options: dict = None,
+        continuous: bool = True 
+    ):
+        assert (ds > 0), "ds must be > 0!"
+        self.fbg_needle = fbgneedle
+
+        # don't calculate each time
+        self.__needle_B    = self.fbg_needle.B
+        self.__needle_Binv = np.linalg.inv( self.fbg_needle.B )
+
+        self.ds = ds
+
+        # optimizer options
+        default_options = {
+            'w_init_bounds': [ (-0.01, 0.01) ] * 3,
+            'kc_bounds'    : [ (0, 0.01) ],
+            'tol'          : 1e-8,
+            'method'       : 'SLSQP',
+            }
+        self.options = default_options
+        self.options.update( optim_options if optim_options is not None else { } )
+
+        # integration options
+        self.continuous = continuous
+
+    # __init__
+        
+    def optimize_curvature_measurements(
+        self,
+        curvature_measurements: List[Tuple[float, np.ndarray]],
+        shape_type: intrinsics.SHAPETYPE,
+        shape_parameters: intrinsics.ShapeParametersBase,
+        initial_estimate: intrinsics.ShapeParametersBase = None,
+    ):
+        """
+        
+        Args:
+            curvature_measurements: List of (measurement points)
+        
+        """
+        pass # TODO
+
+    # optimize_curvature_measurements
+
+    def __optimize_costfn( self, cost_fn, eta_0, **kwargs ):
+        """ Optimize wrapper for multiple functions"""
+        optim_options = self.options.copy()
+        optim_options.update( kwargs )
+
+        # filter specific bounds and add bounds if not already specified
+        exclude_keys = [ 'w_init_bounds', 'kc_bounds', 'needle_rotations' ]
+        optim_options = dict(
+            filter(
+                lambda x: x[ 0 ] not in exclude_keys,
+                optim_options.items()
+            )
+        )
+        if optim_options.get( 'bounds' ) is None:
+            bounds = (
+                self.options[ 'kc_bounds' ] * (eta_0.size - 3) 
+                + self.options[ 'w_init_bounds' ]
+            )
+            optim_options[ 'bounds' ] = bounds
+
+        # bounds
+
+        # perform optimization
+        with warnings.catch_warnings():
+            warnings.simplefilter( "ignore", scipy.integrate.odepack.ODEintWarning )
+            warnings.simplefilter( "ignore", RuntimeWarning )
+            result = spoptim.minimize( cost_fn, eta_0, **optim_options )
+
+        # with
+
+        return result
+
+    # __optimize
+
+# class: NeedleShapeOptimizer

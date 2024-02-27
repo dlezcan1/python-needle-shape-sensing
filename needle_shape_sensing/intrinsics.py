@@ -5,7 +5,8 @@ Library of needle shape sensing intrinic measurement functions
 Author: Dimitri Lezcano
 
 """
-
+import abc
+from dataclasses import dataclass
 from enum import Flag
 from typing import Union, Callable
 
@@ -13,6 +14,42 @@ import numpy as np
 
 from needle_shape_sensing import numerical, geometry
 
+@dataclass(init=False)
+class ShapeParametersBase(abc.ABC):
+    w_init: np.ndarray = np.array([0, 0, 0])
+    insertion_depth: float = None
+
+    
+    def as_vector(self) -> np.ndarray:
+        """ Return the current parameter as a vector for implementation
+
+        Returns: 
+            Numpy array as a vector
+        """
+        return np.concatenate(
+            (
+                self.w_init,
+                [self.insertion_depth],
+            )
+        )
+
+    # as_vector
+
+    @classmethod 
+    @abc.abstractmethod
+    def from_vector(cls, vector: np.ndarray):
+        """ Create a shape parameters object from the vector
+
+        Args:
+            vector (np.ndarray): vector of shape parameters
+
+        Returns:
+            ShapeParameters object
+
+        """
+        pass
+
+# ABC: ShapeParametersBase
 
 class SHAPETYPE( Flag ):
     # first byte is for the number of bends, the second byte is for the number of layers ( - 1)
@@ -98,8 +135,79 @@ class SHAPETYPE( Flag ):
 
 
 # enum class: SHAPETYPES
+    
+class IntrinsicCurvatureBase(abc.ABC):
+    @classmethod
+    @abc.abstractmethod
+    def k0(cls, parameters: ShapeParametersBase, s: np.ndarray = None) -> Union[np.ndarray, Callable[[float], float]]:
+        """ Compute the intrinsic curvature from the given shape parameters
+        
+        Args:
+            parameters: The class's shape parameters
+            s: the arclength parameters to call this at. If None, will provide callable function
+        
+        Returns:
+            (intrinsic curvature) k0(s) if s is not None 
+            (intrinsics curvature function) k0 function if s is None
+        """
+        pass
+
+    # k0
+
+    @classmethod
+    def w0(cls, parameters: ShapeParametersBase, s: np.ndarray = None) -> Union[np.ndarray, Callable[[float], np.ndarray]]:
+        k0 = cls.k0(parameters=parameters, s=s)
+
+        if callable(k0):
+            k0: Callable[[np.ndarray], np.ndarray]
+            return lambda _s: np.concatenate(
+                (
+                    np.asarray(k0(_s)).reshape(-1, 1), 
+                    np.zeros(np.asarray(_s).size, 2)
+                ), 
+                axis=1
+            )
+        
+        # if
+        k0: np.ndarray
+        return np.concatenate((k0.reshape(-1, 1), np.zeros((k0.size, 2))), axis=1)
+    
+    # w0
+
+# base class: IntrinsicCurvatureBase
+
 
 class AirDeflection:
+    @dataclass
+    class ShapeParameters(ShapeParametersBase):
+        insertion_point: np.ndarray = np.array([0, 0, 0])
+
+        def as_vector(self) -> np.ndarray:
+            vector = super().as_vector()
+
+            return np.concatenate(
+                (
+                    vector, 
+                    self.insertion_point,
+                ),
+                axis=0
+            )
+        
+        # as_vector
+
+        @classmethod
+        def from_vector(cls, vector: np.ndarray):
+            obj = cls()
+
+            obj.w_init          = vector[0:3]
+            obj.insertion_depth = vector[3]
+            obj.insertion_point = vector[4:7]
+
+            return obj
+        
+        # from_vector
+    # dataclass: ShapeParameters
+        
     @staticmethod
     def shape( s: np.ndarray, insertion_point: np.ndarray, cubic_fit: bool = False ):
         """
@@ -214,6 +322,38 @@ class AirDeflection:
 # class: AirDeflection
 
 class ConstantCurvature:
+    @dataclass
+    class ShapeParameters(ShapeParametersBase):
+        curvature: float = 0.0
+
+        def as_vector(self) -> np.ndarray:
+            vector = super().as_vector()
+
+            return np.concatenate(
+                (
+                    vector,
+                    [self.curvature]
+                ),
+                axis=0
+            )
+        
+        # as_vector
+
+        @classmethod
+        def from_vector(cls, vector: np.ndarray):
+            obj = cls()
+
+            obj.w_init          = vector[0:3]
+            obj.insertion_depth = vector[3]
+            obj.curvature       = vector[4]
+
+            return obj
+        
+        # from_vector
+
+    # dataclass: ShapeParameters
+
+
     @staticmethod
     def k0( s: np.ndarray, kc: float, return_callable: bool = False ):
         """
@@ -295,6 +435,59 @@ class ConstantCurvature:
 # class: ConstantCurvature
 
 class SingleBend:
+    @dataclass
+    class ShapeParameters(ShapeParametersBase):
+        # intrinsic curvatures
+        kc1: float = None
+        kc2: float = None
+        kc3: float = None
+
+        # multi-layer lengths
+        layer1_length: float = None
+        layer2_length: float = None
+        
+        # insertion depth configurations
+        s_crit1: float = None
+        s_crit2: float = None
+
+        def as_vector(self) -> np.ndarray:
+            vector = super().as_vector()
+
+            return np.concatenate(
+                (
+                    vector,
+                    [self.kc1, self.kc2, self.kc3],
+                    [self.s_crit1, self.s_crit2],
+                    [self.layer1_length, self.layer2_length],
+                )
+            )
+        # as_vector
+
+        @classmethod
+        def from_vector(cls, vector: np.ndarray):
+            obj = cls()
+
+            obj.w_init          = vector[0:3]
+            obj.insertion_depth = vector[4]
+
+            vector = vector[4:] # pop off previous portion
+
+            obj.kc1 = vector[0]
+            obj.kc2 = vector[1]
+            obj.kc3 = vector[2]
+
+            obj.s_crit1         = vector[3]
+            obj.s_crit2         = vector[4]
+
+            obj.layer1_length = vector[5]
+            obj.layer2_length = vector[6]
+
+            return obj
+        
+        # from_vector
+
+    # dataclass: ShapeParameters
+        
     @staticmethod
     def k0_1layer( s: np.ndarray, kc: float, length: float, return_callable: bool = False ):
         """
@@ -613,6 +806,41 @@ class SingleBend:
 # class: SingleBend
 
 class DoubleBend:
+    @dataclass
+    class ShapeParameters(SingleBend.ShapeParameters):
+        p: float = 2/3
+
+        def as_vector(self) -> np.ndarray:
+            vector = super().as_vector()
+
+            return np.concatenate(
+                (
+                    vector,
+                    [self.p],
+                ),
+                axis=0
+            )
+        
+        # as_vector
+
+        @classmethod
+        def from_vector(cls, vector: np.ndarray):
+            obj = super().from_vector(vector)
+
+            # get the index continued
+            N_super = len(super().as_vector())
+
+            # pop off the previous processed portion
+            vector = vector[N_super:]
+
+            obj.p = vector[0]
+
+            return obj
+        
+        # from_vector
+
+    # dataclass: ShapeParameters
+        
     @staticmethod
     def k0_1layer(
         s: np.ndarray, 
